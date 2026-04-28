@@ -1679,63 +1679,89 @@
     // ==================== CLAUDE Q&A ====================
     function setClaudeExample(question) {
       document.getElementById('claude-question').value = question;
+      document.getElementById('claude-question').focus();
+    }
+
+    function buildClaudePrompt(question) {
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+      const panw   = portfolioState.marketData.PANW?.price;
+      let ctx = '# Portfolio Context\n\n## Holdings\n\n';
+      ctx += '| Ticker | Currency | Qty | Buy Price | Current | P&L% | Value (NIS) |\n';
+      ctx += '|---|---|---|---|---|---|---|\n';
+      let totalNis = 0;
+      portfolioState.holdings.forEach(h => {
+        const curr   = h.currency === 'NIS' ? '₪' : '$';
+        const curFmt = h.currentPrice ? `${curr}${h.currentPrice.toFixed(2)}` : '—';
+        const pl     = h.currentPrice ? ((h.currentPrice - h.buyPrice) / h.buyPrice * 100) : null;
+        const plFmt  = pl != null ? `${pl >= 0 ? '+' : ''}${pl.toFixed(1)}%` : '—';
+        const valNis = h.currency === 'NIS'
+          ? h.qty * (h.currentPrice || h.buyPrice)
+          : h.currentPrice ? h.qty * h.currentPrice * usdNis : 0;
+        totalNis += valNis;
+        ctx += `| ${h.ticker} | ${h.currency} | ${h.qty.toLocaleString()} | ${curr}${h.buyPrice.toFixed(2)} | ${curFmt} | ${plFmt} | ₪${Math.round(valNis).toLocaleString()} |\n`;
+      });
+      ctx += `\n## Key Numbers\n`;
+      ctx += `- Total portfolio: ₪${Math.round(totalNis).toLocaleString()} (~$${Math.round(totalNis/usdNis).toLocaleString()})\n`;
+      ctx += `- USD/NIS: ${usdNis.toFixed(3)}\n`;
+      if (panw) ctx += `- PANW price: $${panw.toFixed(2)}\n`;
+      ctx += `\n## Upcoming Events\n`;
+      ctx += `- 31 Aug 2026: Retention bonus ($250K gross / ~$125K net after 50% tax)\n`;
+      ctx += `- 15 Sep 2026: 2,330 PANW RSUs vest (Ch.102 basis $107/share)\n`;
+      ctx += `- Sep–Dec 2026: Career transition window\n`;
+      ctx += `- 15 May 2027: 630 PANW RSUs vest (Ch.102 basis $180/share)\n`;
+      ctx += `\n## Context\n`;
+      ctx += `- Israeli investor, ~95% USD-denominated portfolio\n`;
+      ctx += `- Israeli capital gains tax applies; Chapter 102 for RSUs\n`;
+      ctx += `\n---\n\n**Question:** ${question}`;
+      return ctx;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('btn-claude-send').addEventListener('click', () => {
-        const question = document.getElementById('claude-question').value;
-        if (!question.trim()) {
-          alert('Please enter a question');
+      const prepareBtn = document.getElementById('btn-claude-prepare');
+      const copyBtn    = document.getElementById('btn-claude-copy');
+      const openBtn    = document.getElementById('btn-claude-open');
+      const shareBtn   = document.getElementById('btn-claude-share');
+      const promptBox  = document.getElementById('claude-prompt-box');
+      const promptText = document.getElementById('claude-prompt-text');
+      const copyStatus = document.getElementById('claude-copy-status');
+
+      if (navigator.share) shareBtn.style.display = 'block';
+
+      prepareBtn.addEventListener('click', () => {
+        const question = document.getElementById('claude-question').value.trim();
+        if (!question) {
+          document.getElementById('claude-question').style.outline = '2px solid var(--negative)';
+          setTimeout(() => document.getElementById('claude-question').style.outline = '', 1500);
           return;
         }
+        promptText.value = buildClaudePrompt(question);
+        promptBox.style.display = 'block';
+        setTimeout(() => promptText.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+      });
 
-        // Build context from portfolio state
-        const usdNis = portfolioState.marketData.usdNis || 3.0;
-        let portfolioContext = '## Current Portfolio State\n\n';
-        portfolioContext += '| Ticker | Name | Qty | Buy Price | Current | P&L % |\n';
-        portfolioContext += '|---|---|---|---|---|---|\n';
-
-        portfolioState.holdings.forEach(h => {
-          if (h.currentPrice) {
-            const pl = ((h.currentPrice - h.buyPrice) / h.buyPrice) * 100;
-            portfolioContext += `| ${h.ticker} | ${h.name} | ${h.qty} | $${h.buyPrice.toFixed(2)} | $${h.currentPrice.toFixed(2)} | ${pl > 0 ? '+' : ''}${pl.toFixed(1)}% |\n`;
-          }
-        });
-
-        portfolioContext += `\n**USD/NIS Rate:** ${usdNis.toFixed(2)}\n`;
-        portfolioContext += `**Total Portfolio Value:** ₪${portfolioState.holdings.reduce((sum, h) => sum + (h.currentPrice ? h.qty * h.currentPrice * usdNis : 0), 0).toLocaleString()}\n\n`;
-
-        const fullPrompt = `${portfolioContext}\n---\n\n**My question about this portfolio:**\n\n${question}`;
-
-        // Copy to clipboard - fallback for file:// where clipboard API is blocked
-        function fallbackCopy(text, cb) {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          try {
-            document.execCommand('copy');
-            alert('Portfolio context + question copied to clipboard!\n\nGo to https://claude.ai and paste it (⌘V)');
-          } catch {
-            prompt('Copy this text manually (⌘A then ⌘C):', text);
-          }
-          document.body.removeChild(ta);
-          cb();
-        }
-
-        const openClaude = () => window.open('https://claude.ai', '_blank');
-
+      copyBtn.addEventListener('click', () => {
+        promptText.select();
         if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(fullPrompt)
-            .then(() => {
-              alert('Portfolio context + question copied to clipboard!\n\nGo to https://claude.ai and paste it (⌘V)');
-              openClaude();
-            })
-            .catch(() => fallbackCopy(fullPrompt, openClaude));
+          navigator.clipboard.writeText(promptText.value).then(() => {
+            copyStatus.style.display = 'inline';
+            copyBtn.textContent = '✓ Copied';
+            setTimeout(() => { copyStatus.style.display = 'none'; copyBtn.textContent = '📋 Copy'; }, 2500);
+          });
         } else {
-          fallbackCopy(fullPrompt, openClaude);
+          document.execCommand('copy');
+          copyStatus.style.display = 'inline';
+          copyBtn.textContent = '✓ Copied';
+          setTimeout(() => { copyStatus.style.display = 'none'; copyBtn.textContent = '📋 Copy'; }, 2500);
+        }
+      });
+
+      openBtn.addEventListener('click', () => window.open('https://claude.ai/new', '_blank'));
+
+      shareBtn.addEventListener('click', async () => {
+        try {
+          await navigator.share({ text: promptText.value });
+        } catch (e) {
+          if (e.name !== 'AbortError') copyBtn.click();
         }
       });
     });
