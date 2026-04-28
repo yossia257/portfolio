@@ -978,20 +978,67 @@
 
     <!-- Section 6: Ask Claude -->
     <section id="claude" class="section">
-      <h2>Ask Claude About Your Portfolio</h2>
-      <div class="claude-panel" style="margin-top: 20px;">
+      <h2>🤖 Ask Claude</h2>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;margin-bottom:20px;">
+        Your live portfolio snapshot is bundled automatically. Type a question, prepare the prompt, then send it to Claude.
+      </p>
+      <div class="claude-panel">
+
         <div class="form-group">
           <label class="form-label">Your Question</label>
-          <textarea id="claude-question" placeholder="E.g., Should I rebalance? What should I do about DUOL? Flag my biggest risks?"></textarea>
+          <textarea id="claude-question" placeholder="E.g., Should I rebalance? What are my biggest risks right now?"></textarea>
         </div>
-        <button class="btn-refresh" id="btn-claude-send" style="width: 100%;">
-          Send to Claude (Copy to Clipboard)
+
+        <div class="claude-examples" style="margin-bottom:16px;">
+          <div class="example-chip" onclick="setClaudeExample('What should I do with my worst performers?')">Worst performers</div>
+          <div class="example-chip" onclick="setClaudeExample('Flag my biggest concentration and leverage risks')">Concentration risks</div>
+          <div class="example-chip" onclick="setClaudeExample('Should I rebalance my portfolio? Give specific recommendations.')">Rebalance?</div>
+          <div class="example-chip" onclick="setClaudeExample('Explain the decay risk in TQQQ and SSO given current market conditions')">TQQQ/SSO decay</div>
+          <div class="example-chip" onclick="setClaudeExample('Given my upcoming RSU vests and retention bonus, what should I prioritise?')">RSU planning</div>
+          <div class="example-chip" onclick="setClaudeExample('Which positions should I trim before my career transition in Sep-Dec 2026?')">Pre-transition trim</div>
+        </div>
+
+        <button class="btn-refresh" id="btn-claude-prepare" style="width:100%;margin-bottom:20px;">
+          Prepare Prompt
         </button>
-        <div class="claude-examples">
-          <div class="example-chip" onclick="setClaudeExample('What should I do with my worst performers?')">What should I do with my worst performers?</div>
-          <div class="example-chip" onclick="setClaudeExample('Flag my biggest concentration risks')">Flag my biggest concentration risks</div>
-          <div class="example-chip" onclick="setClaudeExample('Should I rebalance? Why?')">Should I rebalance? Why?</div>
-          <div class="example-chip" onclick="setClaudeExample('Explain the leveraged ETF decay risk in TQQQ and SSO')">Explain TQQQ/SSO decay risk</div>
+
+        <div id="claude-prompt-box" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label class="form-label" style="margin:0;">Your prompt — ready to send</label>
+            <span id="claude-copy-status" style="font-size:12px;color:var(--positive);display:none;">✓ Copied!</span>
+          </div>
+          <textarea id="claude-prompt-text" readonly
+            style="height:200px;font-size:11px;background:rgba(0,0,0,0.3);border:1px solid var(--border-card);
+                   color:var(--text-secondary);border-radius:6px;padding:10px;width:100%;resize:vertical;
+                   font-family:monospace;line-height:1.5;margin-bottom:12px;"></textarea>
+
+          <!-- Mobile: Share to Claude app (primary) -->
+          <button id="btn-claude-share"
+            style="display:none;width:100%;margin-bottom:10px;padding:13px;border-radius:8px;border:none;
+                   background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;
+                   font-weight:700;font-size:15px;cursor:pointer;">
+            Share to Claude App →
+          </button>
+
+          <!-- Desktop: Copy + Open in one action -->
+          <button id="btn-claude-open"
+            style="width:100%;margin-bottom:8px;padding:13px;border-radius:8px;border:none;
+                   background:var(--accent-blue);color:var(--bg-page);
+                   font-weight:700;font-size:15px;cursor:pointer;">
+            Copy &amp; Open Claude →
+          </button>
+
+          <div id="claude-paste-hint" style="display:none;text-align:center;font-size:13px;
+               color:var(--warning);padding:10px;background:rgba(251,191,36,0.08);
+               border-radius:6px;border:1px solid rgba(251,191,36,0.2);">
+            ✓ Copied! Claude is opening — press <strong>⌘V</strong> (Mac) or <strong>Ctrl+V</strong> (Windows) to paste
+          </div>
+
+          <button id="btn-claude-copy"
+            style="width:100%;margin-top:8px;padding:9px;border-radius:6px;border:1px solid var(--border-card);
+                   background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">
+            📋 Copy only (no open)
+          </button>
         </div>
       </div>
     </section>
@@ -1779,7 +1826,11 @@
       const promptText = document.getElementById('claude-prompt-text');
       const copyStatus = document.getElementById('claude-copy-status');
 
-      if (navigator.share) shareBtn.style.display = 'block';
+      // Show Share button on mobile (Web Share API pre-fills text in Claude app)
+      if (navigator.share) {
+        shareBtn.style.display = 'block';
+        openBtn.style.display = 'none';   // Share is the primary action on mobile
+      }
 
       prepareBtn.addEventListener('click', () => {
         const question = document.getElementById('claude-question').value.trim();
@@ -1793,29 +1844,39 @@
         setTimeout(() => promptText.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
       });
 
-      copyBtn.addEventListener('click', () => {
+      async function doCopy() {
         promptText.select();
         if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(promptText.value).then(() => {
-            copyStatus.style.display = 'inline';
-            copyBtn.textContent = '✓ Copied';
-            setTimeout(() => { copyStatus.style.display = 'none'; copyBtn.textContent = '📋 Copy'; }, 2500);
-          });
+          await navigator.clipboard.writeText(promptText.value);
         } else {
           document.execCommand('copy');
-          copyStatus.style.display = 'inline';
-          copyBtn.textContent = '✓ Copied';
-          setTimeout(() => { copyStatus.style.display = 'none'; copyBtn.textContent = '📋 Copy'; }, 2500);
         }
+        copyStatus.style.display = 'inline';
+        setTimeout(() => copyStatus.style.display = 'none', 2500);
+      }
+
+      // "Copy & Open Claude" — copies then opens, shows paste hint
+      openBtn.addEventListener('click', async () => {
+        await doCopy();
+        const hint = document.getElementById('claude-paste-hint');
+        hint.style.display = 'block';
+        window.open('https://claude.ai/new', '_blank');
+        setTimeout(() => hint.style.display = 'none', 8000);
       });
 
-      openBtn.addEventListener('click', () => window.open('https://claude.ai/new', '_blank'));
+      // "Copy only" — just copies, no open
+      copyBtn.addEventListener('click', async () => {
+        await doCopy();
+        copyBtn.textContent = '✓ Copied';
+        setTimeout(() => copyBtn.textContent = '📋 Copy only (no open)', 2500);
+      });
 
+      // Share to Claude app (mobile) — pre-fills text in the app
       shareBtn.addEventListener('click', async () => {
         try {
           await navigator.share({ text: promptText.value });
         } catch (e) {
-          if (e.name !== 'AbortError') copyBtn.click();
+          if (e.name !== 'AbortError') { await doCopy(); }
         }
       });
     });
