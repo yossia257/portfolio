@@ -2018,79 +2018,77 @@
       if (!CONFIG.finnhubKey) { el.textContent = 'Add Finnhub API key in Settings.'; return; }
       el.innerHTML = '<span style="color:var(--text-secondary)">Loading…</span>';
       try {
-        const now  = Math.floor(Date.now() / 1000);
-        const from = now - 90 * 86400;   // 90 days of daily candles for RSI(14) + SMA50
-
-        const [quoteRes, metricRes, candleRes] = await Promise.all([
+        const [quoteRes, metricRes] = await Promise.all([
           fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${CONFIG.finnhubKey}`),
           fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${CONFIG.finnhubKey}`),
-          fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${ticker}&resolution=D&from=${from}&to=${now}&token=${CONFIG.finnhubKey}`),
         ]);
         const q  = await quoteRes.json();
         const m  = await metricRes.json();
-        const cd = await candleRes.json();
         const mt = m.metric || {};
 
-        const fmt    = (v, prefix='$', dec=2) => v != null && !isNaN(v) ? `${prefix}${Number(v).toFixed(dec)}` : '—';
-        const fmtPct = v => v != null && !isNaN(v) ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(1)}%` : '—';
+        const fmt = (v, prefix='$', dec=2) => v != null && !isNaN(v) ? `${prefix}${Number(v).toFixed(dec)}` : '—';
 
         const current = q.c;
         const high52  = mt['52WeekHigh'];
         const low52   = mt['52WeekLow'];
         const pct52   = (high52 && low52 && current)
           ? Math.round(((current - low52) / (high52 - low52)) * 100) : null;
-
-        // ── RSI(14) from daily closes ──
-        let rsi = null;
-        const closes = cd.s === 'ok' ? cd.c : [];
-        if (closes.length >= 15) {
-          const deltas = closes.slice(-15).map((v, i, a) => i === 0 ? 0 : v - a[i-1]).slice(1);
-          const gains  = deltas.map(d => d > 0 ? d : 0);
-          const losses = deltas.map(d => d < 0 ? -d : 0);
-          const avgG   = gains.reduce((a,b) => a+b, 0) / 14;
-          const avgL   = losses.reduce((a,b) => a+b, 0) / 14;
-          rsi = avgL === 0 ? 100 : Math.round(100 - 100 / (1 + avgG / avgL));
-        }
-        const rsiColor  = rsi == null ? '' : rsi > 70 ? 'var(--negative)' : rsi < 30 ? 'var(--positive)' : 'var(--warning)';
-        const rsiLabel  = rsi == null ? '—' : `${rsi} ${rsi > 70 ? '⚠ Overbought' : rsi < 30 ? '✓ Oversold' : 'Neutral'}`;
-
-        // ── SMA20 and SMA50 ──
-        const sma = (arr, n) => arr.length >= n
-          ? arr.slice(-n).reduce((a,b) => a+b, 0) / n : null;
-        const sma20 = sma(closes, 20);
-        const sma50 = sma(closes, 50);
-
-        const vsMA = (price, ma, label) => {
-          if (!price || !ma) return [label, '—'];
-          const pct = ((price - ma) / ma * 100);
-          const color = pct >= 0 ? 'var(--positive)' : 'var(--negative)';
-          return [label, `$${ma.toFixed(2)} <span style="color:${color}">(${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)</span>`];
-        };
-
         const beta = mt.beta;
         const pe   = mt.peBasicExclExtraTTM || mt.peTTM;
         const eps  = mt.epsBasicExclExtraItemsTTM || mt.epsTTM;
+        const mktCap = mt.marketCapitalization;
 
-        const rows = [
-          ['Current', `${fmt(current)} ${q.d != null ? `<span style="color:${q.d >= 0 ? 'var(--positive)' : 'var(--negative)'}">(${q.d >= 0 ? '+' : ''}${q.d?.toFixed(2)} / ${q.dp?.toFixed(2)}%)</span>` : ''}`],
-          ['Day range', (q.l && q.h) ? `${fmt(q.l)} – ${fmt(q.h)}` : '—'],
-          ['52-wk high', fmt(high52)],
-          ['52-wk low', fmt(low52)],
-          ['52-wk position', pct52 != null ? `${pct52}% of range` : '—'],
-          ['RSI (14)', rsiLabel, rsiColor],
-          vsMA(current, sma20, 'SMA 20d'),
-          vsMA(current, sma50, 'SMA 50d'),
-          ['Beta', fmt(beta, '', 2)],
-          ['P/E (TTM)', fmt(pe, '', 1)],
-          ['EPS (TTM)', fmt(eps)],
-        ];
+        // Price vs 52-week range — visual bar
+        const barPct = pct52 != null ? pct52 : 0;
+        const barColor = barPct > 75 ? 'var(--negative)' : barPct < 25 ? 'var(--positive)' : 'var(--warning)';
+
+        const dailySign = q.d >= 0 ? '+' : '';
+        const dailyColor = q.d >= 0 ? 'var(--positive)' : 'var(--negative)';
 
         el.innerHTML = `
-          <table style="width:100%;font-size:12px;border-collapse:collapse;">
-            ${rows.map(([k,v,col]) => `<tr>
-              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">${k}</td>
-              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);${col ? 'color:' + col : ''}">${v}</td>
-            </tr>`).join('')}
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:10px;">
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Price</td>
+              <td style="text-align:right;font-weight:700;padding:4px 0;border-bottom:1px solid var(--border-card);">
+                ${fmt(current)}
+                ${q.d != null ? `<span style="color:${dailyColor};font-weight:600;"> ${dailySign}${q.d?.toFixed(2)} (${dailySign}${q.dp?.toFixed(2)}%)</span>` : ''}
+              </td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Day range</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${(q.l && q.h) ? `${fmt(q.l)} – ${fmt(q.h)}` : '—'}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">52-wk range</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(low52)} – ${fmt(high52)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding:6px 0;border-bottom:1px solid var(--border-card);">
+                <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);">
+                  <span>52-wk low</span>
+                  <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:4px;height:6px;position:relative;">
+                    <div style="position:absolute;left:0;top:0;height:100%;width:${barPct}%;background:${barColor};border-radius:4px;"></div>
+                  </div>
+                  <span>52-wk high</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Beta</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(beta,'',2)}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">P/E (TTM)</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(pe,'',1)}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">EPS (TTM)</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(eps)}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;">Mkt Cap</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;">${mktCap ? '$' + (mktCap/1000).toFixed(1) + 'B' : '—'}</td>
+            </tr>
           </table>`;
       } catch (e) {
         el.textContent = 'Failed to load technical data.';
@@ -2104,12 +2102,9 @@
       if (!CONFIG.finnhubKey) { el.textContent = 'Add Finnhub API key in Settings.'; return; }
       el.innerHTML = '<span style="color:var(--text-secondary)">Loading…</span>';
       try {
-        const [recRes, ptRes] = await Promise.all([
-          fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${CONFIG.finnhubKey}`),
-          fetch(`https://finnhub.io/api/v1/stock/price-target?symbol=${ticker}&token=${CONFIG.finnhubKey}`),
-        ]);
+        const recRes = await fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${CONFIG.finnhubKey}`);
         const recs = await recRes.json();
-        const pt   = await ptRes.json();
+        const pt = {};   // price-target is a paid Finnhub feature
 
         if (!recs || recs.length === 0) { el.textContent = 'No analyst data available.'; return; }
 
