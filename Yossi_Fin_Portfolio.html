@@ -644,9 +644,10 @@
     @media (max-width: 768px) {
       .drill-panel {
         width: 100%;
-        right: auto;
-        bottom: auto;
-        top: auto;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
       }
 
       main {
@@ -766,6 +767,7 @@
       <button class="tab-btn" data-tab="news">📰 News</button>
       <button class="tab-btn" data-tab="learn">🎓 Learn</button>
       <button class="tab-btn" data-tab="claude">🤖 Ask Claude</button>
+      <button class="tab-btn" data-tab="planning">📋 Planning</button>
     </div>
   </header>
 
@@ -831,10 +833,6 @@
         </table>
       </div>
 
-      <div style="margin-top: 40px;">
-        <h3 style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Upcoming Events &amp; RSU Income</h3>
-        <div id="rsu-cards" style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));"></div>
-      </div>
     </section>
 
     <!-- Section 2: Market Snapshot -->
@@ -856,29 +854,40 @@
           </div>
         </div>
 
-        <!-- Key Events timeline -->
-        <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 20px;">
-          <div style="font-weight: 700; margin-bottom: 16px; color: var(--accent-blue);">Key Upcoming Events</div>
-          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
-            <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(251,191,36,0.08); border-left: 3px solid var(--warning); border-radius: 4px;">
-              <span style="font-weight: 700; min-width: 90px; color: var(--warning);">31 Aug 2026</span>
-              <span>Retention bonus eligibility — $250K gross (~$125K net). Decide: stay or transition?</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(74,222,128,0.08); border-left: 3px solid var(--positive); border-radius: 4px;">
-              <span style="font-weight: 700; min-width: 90px; color: var(--positive);">15 Sep 2026</span>
-              <span>2,330 PANW RSUs vest — cost basis $107/share (Ch. 102). Plan sell vs. hold strategy.</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(248,113,113,0.08); border-left: 3px solid var(--negative); border-radius: 4px;">
-              <span style="font-weight: 700; min-width: 90px; color: var(--negative);">Sep–Dec 2026</span>
-              <span>Potential career transition window — prepare liquidity, review which positions to trim.</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(74,222,128,0.08); border-left: 3px solid var(--positive); border-radius: 4px;">
-              <span style="font-weight: 700; min-width: 90px; color: var(--positive);">15 May 2027</span>
-              <span>630 PANW RSUs vest — cost basis $180/share (Ch. 102).</span>
-            </div>
+      </div>
+    </section>
+
+    <!-- Planning Tab -->
+    <section id="planning" class="section">
+      <h2>📋 Planning &amp; Income</h2>
+      <p style="margin-top: 4px; font-size: 13px; color: var(--text-secondary);">RSU vests, retention bonus estimates, and career transition timeline.</p>
+
+      <!-- Key Events timeline -->
+      <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 20px; margin-top: 24px; margin-bottom: 24px;">
+        <div style="font-weight: 700; margin-bottom: 16px; color: var(--accent-blue);">Key Upcoming Events</div>
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(251,191,36,0.08); border-left: 3px solid var(--warning); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--warning);">31 Aug 2026</span>
+            <span>Retention bonus eligibility — $250K gross (~$125K net). Decide: stay or transition?</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(74,222,128,0.08); border-left: 3px solid var(--positive); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--positive);">15 Sep 2026</span>
+            <span>2,330 PANW RSUs vest — cost basis $107/share (Ch. 102). Plan sell vs. hold strategy.</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(248,113,113,0.08); border-left: 3px solid var(--negative); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--negative);">Sep–Dec 2026</span>
+            <span>Potential career transition window — prepare liquidity, review which positions to trim.</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(74,222,128,0.08); border-left: 3px solid var(--positive); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--positive);">15 May 2027</span>
+            <span>630 PANW RSUs vest — cost basis $180/share (Ch. 102).</span>
           </div>
         </div>
       </div>
+
+      <!-- RSU & Bonus cards -->
+      <h3 style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Income Estimates (live PANW price)</h3>
+      <div id="rsu-cards" style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));"></div>
     </section>
 
     <!-- Section 3: Urgent Signals -->
@@ -1061,6 +1070,7 @@
       document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
       if (tabName === 'snapshot') renderSnapshot();
       if (tabName === 'news') fetchNews('general');
+      if (tabName === 'planning') renderRSUCards();
     }
 
     // ==================== CONFIG MANAGEMENT ====================
@@ -1212,9 +1222,10 @@
             // Synthetic IL-{number} tickers have no Yahoo equivalent — skip
             if (holding.ticker.startsWith('IL-')) continue;
 
-            // Yahoo Finance uses dashes, not dots: KSM.F77 → KSM-F77
-            const yahoTicker = holding.ticker.replace(/\./g, '-');
-            const tasTicker  = yahoTicker.endsWith('.TA') ? yahoTicker : `${yahoTicker}.TA`;
+            // Sheet tickers may already have .TA — strip it, convert dots→dashes, re-add .TA
+            // e.g. KSM.F77.TA → base=KSM.F77 → KSM-F77 → KSM-F77.TA
+            const base      = holding.ticker.replace(/\.TA$/i, '');
+            const tasTicker = base.replace(/\./g, '-') + '.TA';
 
             const response = await fetch(`${YAHOO_PROXY}${tasTicker}`);
             const data = await response.json();
