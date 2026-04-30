@@ -2397,12 +2397,41 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;padding-top:8px;border-top:1px solid var(--border-card);">
-            Analyst price target: not available on free tier
+            Analyst price target:
+          </div>
+          <div id="drill-analyst-target" style="font-size:11px;color:var(--text-secondary);margin-top:4px;">
+            Add FMP API key in Settings to see price targets (free)
           </div>`;
+      // Fetch FMP price target separately so it doesn't block the consensus display
+      if (CONFIG.fmpKey) fetchFmpTarget(ticker, document.getElementById('drill-analyst-target'));
       } catch (e) {
         el.innerHTML = `<span style="color:var(--negative)">Could not load: ${e.message}</span>`;
         console.error('drill analyst:', e);
       }
+    }
+
+    async function fetchFmpTarget(ticker, targetEl) {
+      if (!targetEl) return;
+      try {
+        const res  = await fetch(`https://financialmodelingprep.com/api/v3/price-target-consensus/${ticker}?apikey=${CONFIG.fmpKey}`);
+        const data = await res.json();
+        if (!Array.isArray(data) || !data[0]) { targetEl.textContent = 'No price target data'; return; }
+        const pt      = data[0];
+        const holding = portfolioState.holdings.find(h => h.ticker === ticker);
+        const upside  = (holding?.currentPrice && pt.targetConsensus)
+          ? ((pt.targetConsensus / holding.currentPrice) - 1) * 100 : null;
+        const uColor  = upside != null ? (upside >= 0 ? 'var(--positive)' : 'var(--negative)') : '';
+        targetEl.innerHTML = `
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px;">
+            <tr><td style="color:var(--text-secondary);padding:3px 0;">Target (mean)</td>
+                <td style="text-align:right;font-weight:600;">
+                  ${pt.targetConsensus ? '$'+pt.targetConsensus.toFixed(2) : '—'}
+                  ${upside != null ? `<span style="color:${uColor}"> (${upside>=0?'+':''}${upside.toFixed(1)}%)</span>` : ''}
+                </td></tr>
+            <tr><td style="color:var(--text-secondary);padding:3px 0;">Range</td>
+                <td style="text-align:right;font-weight:600;">${pt.targetLow?'$'+pt.targetLow.toFixed(2):'—'} – ${pt.targetHigh?'$'+pt.targetHigh.toFixed(2):'—'}</td></tr>
+          </table>`;
+      } catch (e) { targetEl.textContent = 'Could not load price targets'; }
     }
 
     async function fetchDrillDownNews(ticker) {
