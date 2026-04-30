@@ -303,6 +303,23 @@
       color: var(--negative);
     }
 
+    .wl-note-cell {
+      color: var(--text-secondary);
+      font-size: 12px;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      min-width: 80px;
+    }
+    .wl-note-cell.expanded {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
+      max-width: 260px;
+    }
+
     /* KPI Cards */
     .kpi-grid {
       display: grid;
@@ -2093,7 +2110,7 @@
           <td>${price}</td>
           <td class="${dCls}">${dStr}</td>
           <td>${wk52}</td>
-          <td style="color:var(--text-secondary);font-size:12px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help;" title="${item.note || ''}">${item.note || '—'}</td>
+          <td class="wl-note-cell" onclick="this.classList.toggle('expanded')" title="${item.note || ''}">${item.note || '—'}</td>
           <td style="color:var(--text-secondary);font-size:12px;white-space:nowrap;">${item.added || ''}</td>
           <td><button class="btn-small" onclick="removeWatchlistTicker('${item.ticker}')">✕</button></td>
         </tr>`;
