@@ -2903,6 +2903,16 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
         document.getElementById('pin-gate').classList.add('hidden');
       }
 
+      // URL-based unlock: navigate to ?pin=1850 to unlock without DevTools
+      try {
+        var urlPin = new URLSearchParams(window.location.search).get('pin');
+        if (urlPin && btoa(urlPin) === PIN_B64) {
+          unlock();
+          history.replaceState({}, '', window.location.pathname);
+          return;
+        }
+      } catch (e) {}
+
       if (isUnlocked()) {
         document.getElementById('pin-gate').classList.add('hidden');
         return;
