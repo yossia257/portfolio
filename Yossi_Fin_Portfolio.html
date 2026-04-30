@@ -1029,7 +1029,7 @@
             <th>Current</th>
             <th>Daily %</th>
             <th>52-wk Position</th>
-            <th>Note</th>
+            <th style="min-width:160px;">Note</th>
             <th>Added</th>
             <th style="width:40px;"></th>
           </tr></thead>
@@ -2093,8 +2093,8 @@
           <td>${price}</td>
           <td class="${dCls}">${dStr}</td>
           <td>${wk52}</td>
-          <td style="color:var(--text-secondary);font-size:12px;">${item.note || '—'}</td>
-          <td style="color:var(--text-secondary);font-size:12px;">${item.added || ''}</td>
+          <td style="color:var(--text-secondary);font-size:12px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help;" title="${item.note || ''}">${item.note || '—'}</td>
+          <td style="color:var(--text-secondary);font-size:12px;white-space:nowrap;">${item.added || ''}</td>
           <td><button class="btn-small" onclick="removeWatchlistTicker('${item.ticker}')">✕</button></td>
         </tr>`;
       }).join('');
