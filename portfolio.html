@@ -754,9 +754,62 @@
       color: var(--text-primary);
     }
 
+    /* ── PIN Gate ── */
+    #pin-gate {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-page);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #pin-gate.hidden { display: none; }
+    .pin-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      padding: 40px 36px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .pin-logo { font-size: 36px; margin-bottom: 12px; }
+    .pin-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .pin-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; }
+    .pin-input {
+      width: 100%; padding: 14px; font-size: 24px; letter-spacing: 12px;
+      text-align: center; border-radius: 8px; border: 2px solid var(--border-card);
+      background: rgba(0,0,0,0.3); color: var(--text-primary);
+      margin-bottom: 16px; outline: none;
+    }
+    .pin-input:focus { border-color: var(--accent-blue); }
+    .pin-input.error { border-color: var(--negative); animation: pin-shake 0.4s; }
+    @keyframes pin-shake {
+      0%,100% { transform: translateX(0); }
+      20%,60% { transform: translateX(-8px); }
+      40%,80% { transform: translateX(8px); }
+    }
+    .pin-btn {
+      width: 100%; padding: 13px; border: none; border-radius: 8px;
+      background: var(--accent-blue); color: var(--bg-page);
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .pin-btn:hover { background: #06b6d4; }
+    .pin-error { font-size: 12px; color: var(--negative); margin-top: 10px; min-height: 18px; }
   </style>
 </head>
 <body>
+  <!-- PIN Gate -->
+  <div id="pin-gate">
+    <div class="pin-card">
+      <div class="pin-logo">📊</div>
+      <div class="pin-title">Portfolio Dashboard</div>
+      <div class="pin-subtitle">Enter your PIN to continue</div>
+      <input id="pin-input" type="password" inputmode="numeric"
+             class="pin-input" maxlength="8" placeholder="••••"
+             autocomplete="off" autofocus />
+      <button class="pin-btn" id="pin-submit">Unlock</button>
+      <div class="pin-error" id="pin-error"></div>
+    </div>
+  </div>
+
   <header>
     <div class="header-top">
       <div class="header-title">
@@ -1104,6 +1157,8 @@
   </div>
 
   <script>
+    (function(){var d=document.getElementById("diag");if(d)d.textContent="JS running";})();
+    document.addEventListener("DOMContentLoaded",function(){var d=document.getElementById("diag");if(d)d.textContent="DCL fired | tabs:"+document.querySelectorAll(".tab-btn").length;});
     // ==================== CONFIG ====================
     const CONFIG = {
       finnhubKey: localStorage.getItem('finnhub_key') || 'd7msd89r01qngrvp921gd7msd89r01qngrvp9220',
@@ -1211,9 +1266,6 @@
           CONFIG.finnhubKey = key;
           alert('Configuration saved!');
         } else {
-    (function(){var d=document.getElementById('diag');if(d)d.textContent='LINES 1-108 OK';}
-    )();
-  </script><script>
           alert('Please enter a Finnhub API key');
         }
       });
@@ -2834,6 +2886,57 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
       document.getElementById('btn-refresh-prices').addEventListener('click', fetchPrices);
     }
 
+    // ==================== PIN GATE ====================
+    (function() {
+      const HASH    = '202fd26f14d638ccb40975163ab0f05e1acf24c04a30708b3e0abfac44301a08';
+      const DAYS    = 30;
+      const STORAGE = 'portfolio_auth';
+
+      async function sha256(str) {
+        const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+      }
+
+      function isUnlocked() {
+        try {
+          const val = JSON.parse(localStorage.getItem(STORAGE) || 'null');
+          return val && val.exp > Date.now();
+        } catch { return false; }
+      }
+
+      function unlock() {
+        const exp = Date.now() + DAYS * 86400 * 1000;
+        localStorage.setItem(STORAGE, JSON.stringify({ exp }));
+        document.getElementById('pin-gate').classList.add('hidden');
+      }
+
+      if (isUnlocked()) {
+        document.getElementById('pin-gate').classList.add('hidden');
+        return;
+      }
+
+      const input = document.getElementById('pin-input');
+      const btn   = document.getElementById('pin-submit');
+      const err   = document.getElementById('pin-error');
+
+      async function tryPin() {
+        const pin = input.value.trim();
+        if (!pin) return;
+        const h = await sha256(pin);
+        if (h === HASH) {
+          unlock();
+        } else {
+          err.textContent = 'Incorrect PIN — try again';
+          input.classList.add('error');
+          input.value = '';
+          setTimeout(() => { input.classList.remove('error'); err.textContent = ''; }, 1400);
+          input.focus();
+        }
+      }
+
+      btn.addEventListener('click', tryPin);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') tryPin(); });
+    })();
   </script>
 </body>
 </html>
