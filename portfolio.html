@@ -1319,6 +1319,9 @@
           banner.classList.add('visible');
         }
         console.log('Using seed data (Google Sheet unavailable)');
+    (function(){var d=document.getElementById('diag');if(d)d.textContent='LINES 1-216 OK';}
+    )();
+  </script><script>
         renderHoldingsTable();
         await fetchPrices();
       }
@@ -1535,8 +1538,6 @@
         panwChangeEl.textContent = `${panw.changePercent > 0 ? '▲' : '▼'} ${Math.abs(panw.changePercent).toFixed(2)}%`;
         panwChangeEl.className = `ticker-change ${panw.changePercent > 0 ? 'positive' : 'negative'}`;
       }
-    (function(){ var d=document.getElementById('diag'); if(d) d.textContent='QUARTER 1 OK (1-432)'; })();
-  </script><script>
     }
 
     // ==================== RENDER HOLDINGS TABLE ====================
