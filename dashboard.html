@@ -2205,8 +2205,10 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
         });
 
         const data  = await resp.json();
-        const text  = data.content?.[0]?.text || '';
-        const items = JSON.parse(text.trim());
+        const raw   = data.content?.[0]?.text || '';
+        // Strip markdown code fences if Claude wraps the JSON
+        const text  = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const items = JSON.parse(text);
 
         const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         localStorage.setItem('daily_recs', JSON.stringify({ date: today, time, items }));
