@@ -665,15 +665,15 @@
 
       .tab-bar {
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 4px;
       }
 
       .tab-btn {
         min-width: auto;
-        padding: 8px 6px;
+        padding: 8px 4px;
         font-size: 11px;
-        min-height: 50px;
+        min-height: 44px;
       }
 
       table {
@@ -682,6 +682,12 @@
 
       td, th {
         padding: 8px;
+      }
+
+      .ai-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
       }
 
       .col-name,
@@ -2028,15 +2034,22 @@
     let watchlistState = { items: [] };
     const WL_SCRIPT = () => CONFIG.watchlistUrl;
 
-    function callWatchlist(params) {
+    function callWatchlist(params, attempt = 1) {
       return new Promise((resolve, reject) => {
         if (!WL_SCRIPT()) { reject(new Error('No watchlist URL — add it in Settings')); return; }
-        const cbName = '__wl_' + Date.now();
+        const cbName = '__wl_' + Date.now() + '_' + attempt;
         const url    = WL_SCRIPT() + '?' + new URLSearchParams({ ...params, callback: cbName }).toString();
         const script = document.createElement('script');
-        const timer  = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('Timeout')); }, 12000);
+        const timer  = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('Timeout')); }, 20000);
         window[cbName] = (data) => { clearTimeout(timer); delete window[cbName]; script.remove(); resolve(data); };
-        script.onerror = () => { clearTimeout(timer); delete window[cbName]; reject(new Error('Script load failed')); };
+        script.onerror = () => {
+          clearTimeout(timer); delete window[cbName]; script.remove();
+          if (attempt < 2) {
+            setTimeout(() => callWatchlist(params, attempt + 1).then(resolve).catch(reject), 2000);
+          } else {
+            reject(new Error('Script load failed'));
+          }
+        };
         script.src = url;
         document.head.appendChild(script);
       });
@@ -2235,22 +2248,22 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
                      : inWl  ? '<span style="font-size:10px;background:rgba(74,222,128,0.15);color:var(--positive);padding:2px 6px;border-radius:3px;margin-left:6px;">In watchlist</span>'
                      : '';
         return `<div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-card);border-left:3px solid ${col};border-radius:8px;padding:14px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div class="ai-card-header" style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
             <div>
               <span style="font-size:15px;font-weight:800;color:${col};">${item.ticker}</span>
               ${badge}
               <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">${item.name}</span>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
               <span style="font-size:11px;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:10px;color:${col};">${item.type}</span>
-              ${(!inWl && !inPort) ? `<button onclick="addFromAI('${item.ticker}','${(item.why||'').replace(/'/g,"\'")}',this)"
+              ${(!inWl && !inPort) ? `<button onclick="addFromAI('${item.ticker}','${(item.why||'').replace(/'/g,"\\'")}',this)"
                 style="font-size:11px;padding:4px 10px;border-radius:4px;border:none;background:var(--accent-blue);color:#0f172a;font-weight:700;cursor:pointer;">
                 + Watchlist</button>` : ''}
             </div>
           </div>
-          <div style="font-size:12px;color:var(--text-primary);margin-bottom:6px;">${item.why}</div>
-          <div style="font-size:11px;color:var(--negative);">⚠ ${item.risk}</div>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Suggested sizing: ${item.sizing}</div>
+          <div style="font-size:13px;line-height:1.5;color:var(--text-primary);margin-bottom:8px;">${item.why}</div>
+          <div style="font-size:12px;color:var(--negative);">Risk: ${item.risk}</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Sizing: ${item.sizing}</div>
         </div>`;
       }).join('');
     }
