@@ -880,16 +880,12 @@
           <thead>
             <tr>
               <th class="col-ticker sortable" data-sort="ticker" title="Sort by ticker">Ticker <span class="sort-ind"></span></th>
-              <th class="col-name sortable" data-sort="name" title="Sort by name">Name <span class="sort-ind"></span></th>
-              <th class="col-qty sortable" data-sort="qty" title="Sort by quantity">Qty <span class="sort-ind"></span></th>
-              <th class="col-buyprice">Buy Price</th>
-              <th class="col-current sortable" data-sort="current" title="Sort by current price">Current <span class="sort-ind"></span></th>
-              <th class="col-value sortable" data-sort="value" title="Sort by total value">Value (NIS) <span class="sort-ind"></span></th>
               <th class="col-daily sortable" data-sort="daily" title="Sort by daily change">Daily % <span class="sort-ind"></span></th>
+              <th class="col-premarket sortable" data-sort="premarket" title="Sort by pre/post market">Ext Hrs % <span class="sort-ind"></span></th>
               <th class="col-pl sortable" data-sort="pl" title="Sort by P&amp;L">P&amp;L % <span class="sort-ind"></span></th>
-              <th class="col-analyst">Analyst</th>
-              <th class="col-category sortable" data-sort="category" title="Sort by category">Category <span class="sort-ind"></span></th>
-              <th style="width: 40px;">—</th>
+              <th class="col-value sortable" data-sort="value" title="Sort by total value">Value (NIS) <span class="sort-ind"></span></th>
+              <th class="col-current sortable" data-sort="current" title="Sort by current price">Rate <span class="sort-ind"></span></th>
+              <th class="col-qty sortable" data-sort="qty" title="Sort by quantity">Qty <span class="sort-ind"></span></th>
             </tr>
           </thead>
           <tbody id="holdings-body"></tbody>
@@ -1274,6 +1270,7 @@
           portfolioState.holdings.push({
             name, stockNumber, ticker, qty, currency, buyPrice, comments,
             currentPrice: null, dailyChange: null, dailyChangePercent: null,
+            extPrice: null, extPct: null, extType: null,
           });
         }
 
@@ -1377,6 +1374,50 @@
 
       btn.classList.remove('loading');
       btn.textContent = `Refresh Prices (${successCount}/${portfolioState.holdings.length})`;
+
+      // Fetch extended hours in background — updates table when done
+      fetchExtendedPrices();
+    }
+
+    async function fetchExtendedPrices() {
+      const usdHoldings = portfolioState.holdings.filter(h => h.currency === 'USD' && !h.ticker.startsWith('IL-'));
+      for (const holding of usdHoldings) {
+        try {
+          const res  = await fetch(`${YAHOO_PROXY}${holding.ticker}?interval=2m&range=1d&includePrePost=true`);
+          const data = await res.json();
+          const r    = data.chart?.result?.[0];
+          if (!r) continue;
+          const meta     = r.meta || {};
+          const ts       = r.timestamp || [];
+          const closes   = r.indicators?.quote?.[0]?.close || [];
+          const tradePer = meta.currentTradingPeriod?.regular || {};
+          const regStart = tradePer.start || 0;
+          const regEnd   = tradePer.end   || 0;
+          const regClose = meta.regularMarketPrice;
+          const prevClose = meta.chartPreviousClose || meta.regularMarketPrice;
+
+          let extPrice = null, extType = null;
+          for (let i = ts.length - 1; i >= 0; i--) {
+            if (!closes[i]) continue;
+            const t = ts[i];
+            if (regEnd   && t > regEnd)   { extPrice = closes[i]; extType = 'After-hours'; break; }
+            if (regStart && t < regStart) { extPrice = closes[i]; extType = 'Pre-market';  break; }
+          }
+
+          if (extPrice) {
+            const base = extType === 'After-hours' ? (regClose || prevClose) : prevClose;
+            holding.extPrice = extPrice;
+            holding.extType  = extType;
+            holding.extPct   = base ? ((extPrice - base) / base * 100) : null;
+          } else {
+            holding.extPrice = null;
+            holding.extType  = null;
+            holding.extPct   = null;
+          }
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 150));
+      }
+      renderHoldingsTable();
     }
 
     function updateLastRefreshDisplay() {
@@ -1503,6 +1544,7 @@
             va = a.currency==='NIS' ? a.qty*(a.currentPrice||a.buyPrice) : a.qty*(a.currentPrice||0)*usdNis;
             vb = b.currency==='NIS' ? b.qty*(b.currentPrice||b.buyPrice) : b.qty*(b.currentPrice||0)*usdNis;
             break;
+          case 'premarket': va = a.extPct ?? -999; vb = b.extPct ?? -999; break;
           case 'category': va = a.comments || ''; vb = b.comments || ''; break;
           default: return 0;
         }
@@ -1542,18 +1584,27 @@
         }
 
         tr.className = rowClass;
+
+        const dailyClass = dailyPercent > 0 ? 'value-positive' : dailyPercent < 0 ? 'value-negative' : '';
+        const dailyStr   = dailyPercent !== 0 ? (dailyPercent > 0 ? '▲' : '▼') + Math.abs(dailyPercent).toFixed(2) + '%' : '—';
+        const plClass    = pl > 0 ? 'value-positive' : pl < 0 ? 'value-negative' : '';
+        const plStr      = pl !== 0 ? (pl > 0 ? '+' : '') + pl.toFixed(1) + '%' : '—';
+        const rateStr    = currentPrice ? (holding.currency === 'NIS' ? `₪${currentPrice.toFixed(2)}` : `$${currentPrice.toFixed(2)}`) : '—';
+
+        const extPct   = holding.extPct;
+        const extClass = extPct != null ? (extPct > 0 ? 'value-positive' : 'value-negative') : '';
+        const extStr   = extPct != null
+          ? `${extPct > 0 ? '▲' : '▼'}${Math.abs(extPct).toFixed(2)}%`
+          : '—';
+
         tr.innerHTML = `
           <td class="col-ticker"><span class="ticker-cell" onclick="openDrillDown('${holding.ticker}')">${holding.ticker}</span></td>
-          <td class="col-name">${holding.name}</td>
-          <td class="col-qty">${holding.qty.toLocaleString()}</td>
-          <td class="col-buyprice">${holding.currency === 'NIS' ? `₪${holding.buyPrice.toFixed(2)}` : `$${holding.buyPrice.toFixed(2)}`}</td>
-          <td class="col-current">${currentPrice ? (holding.currency === 'NIS' ? `₪${currentPrice.toFixed(2)}` : `$${currentPrice.toFixed(2)}`) : '—'}</td>
+          <td class="col-daily ${dailyClass}">${dailyStr}</td>
+          <td class="col-premarket ${extClass}" title="${holding.extType || ''}">${extStr}</td>
+          <td class="col-pl ${plClass}">${plStr}</td>
           <td class="col-value">₪${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
-          <td class="col-daily ${dailyPercent > 0 ? 'value-positive' : dailyPercent < 0 ? 'value-negative' : ''}">${dailyPercent !== 0 ? (dailyPercent > 0 ? '▲' : '▼') + Math.abs(dailyPercent).toFixed(2) + '%' : '—'}</td>
-          <td class="col-pl ${pl > 0 ? 'value-positive' : pl < 0 ? 'value-negative' : ''}">${pl !== 0 ? (pl > 0 ? '+' : '') + pl.toFixed(1) + '%' : '—'}</td>
-          <td class="col-analyst">—</td>
-          <td class="col-category">${holding.comments}</td>
-          <td><button class="btn-small" onclick="deleteHolding('${holding.ticker}')">✕</button></td>
+          <td class="col-current">${rateStr}</td>
+          <td class="col-qty">${holding.qty.toLocaleString()}</td>
         `;
         tbody.appendChild(tr);
       });
