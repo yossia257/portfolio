@@ -757,6 +757,7 @@
   </style>
 </head>
 <body>
+  <div id="diag" style="position:fixed;bottom:10px;right:10px;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;padding:8px 12px;font-size:12px;z-index:9999;border-radius:6px;font-family:monospace;">HTML loaded</div>
   <header>
     <div class="header-top">
       <div class="header-title">
@@ -1110,6 +1111,12 @@
       d.textContent = 'JS ERROR line ' + line + ': ' + msg;
       document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function(){document.body.appendChild(d);});
     };
+    // Sync diagnostic
+    (function(){ var d=document.getElementById('diag'); if(d) d.textContent='JS: module running'; })();
+    document.addEventListener('DOMContentLoaded', function() {
+      var d=document.getElementById('diag');
+      if(d) d.textContent='JS: DCL fired | tabs:'+document.querySelectorAll('.tab-btn').length+' | tip:'+(document.getElementById('tip-card')?'found':'MISSING');
+    });
 
     // ==================== CONFIG ====================
     const CONFIG = {
