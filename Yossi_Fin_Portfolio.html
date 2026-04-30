@@ -831,6 +831,7 @@
       <button class="tab-btn" data-tab="learn">🎓 Learn</button>
       <button class="tab-btn" data-tab="claude">🤖 Ask Claude</button>
       <button class="tab-btn" data-tab="planning">📋 Planning</button>
+      <button class="tab-btn" data-tab="watchlist">👀 Watchlist</button>
     </div>
   </header>
 
@@ -1048,6 +1049,58 @@
       </div>
     </section>
 
+    <!-- Watchlist Tab -->
+    <section id="watchlist" class="section">
+      <h2>👀 Watchlist</h2>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;margin-bottom:20px;">
+        Track tickers outside your portfolio. Stored in your Google Sheet — syncs across all devices.
+      </p>
+
+      <!-- Add ticker form -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <input id="wl-ticker" placeholder="Ticker (e.g. NVDA)" maxlength="12"
+          style="flex:1;min-width:100px;padding:10px;background:var(--bg-card);border:1px solid var(--border-card);
+                 color:var(--text-primary);border-radius:6px;font-size:14px;text-transform:uppercase;">
+        <input id="wl-note" placeholder="Note / rationale (optional)"
+          style="flex:3;min-width:180px;padding:10px;background:var(--bg-card);border:1px solid var(--border-card);
+                 color:var(--text-primary);border-radius:6px;font-size:14px;">
+        <button id="btn-wl-add" class="btn-refresh" style="padding:10px 20px;white-space:nowrap;">+ Add</button>
+      </div>
+      <div id="wl-status" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;min-height:18px;"></div>
+
+      <!-- Watchlist table -->
+      <div class="table-wrapper" style="margin-bottom:32px;">
+        <table>
+          <thead><tr>
+            <th>Ticker</th>
+            <th>Current</th>
+            <th>Daily %</th>
+            <th>52-wk Position</th>
+            <th>Note</th>
+            <th>Added</th>
+            <th style="width:40px;"></th>
+          </tr></thead>
+          <tbody id="wl-body">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:20px;">
+              Loading watchlist…
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- AI Recommendations -->
+      <div style="background:var(--bg-card);border:1px solid var(--border-card);border-radius:8px;padding:20px;">
+        <div style="font-weight:700;margin-bottom:8px;color:var(--accent-purple);">🤖 AI Investment Ideas</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
+          Ask Claude to suggest 3–5 diversified investment ideas — across industries, geographies, instruments (stocks, ETFs, crypto) —
+          based on attractive valuations, technical signals, and sentiment.
+        </div>
+        <button id="btn-wl-ai" class="btn-refresh" style="width:100%;background:var(--accent-purple);">
+          Get Investment Ideas from Claude →
+        </button>
+      </div>
+    </section>
+
     <!-- Section 7: Settings -->
     <section id="settings" class="section">
       <h2>Settings</h2>
@@ -1056,6 +1109,17 @@
           <div class="kpi-label">Finnhub API Key</div>
           <input type="password" id="finnhub-key-input" placeholder="Enter your Finnhub API key" style="width: 100%; padding: 8px; margin-top: 8px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-card); color: var(--text-primary); border-radius: 4px;">
           <button class="btn-refresh" style="margin-top: 12px; width: 100%;" id="btn-save-config">Save Configuration</button>
+        </div>
+        <div class="kpi-card" style="margin-top: 16px;">
+          <div class="kpi-label">Watchlist Script URL</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;margin-bottom:8px;">
+            Google Apps Script web app URL — enables the 👀 Watchlist tab to sync across devices.
+          </div>
+          <input id="wl-url-input" type="text"
+            placeholder="https://script.google.com/macros/s/.../exec"
+            style="width:100%;padding:8px;background:rgba(0,0,0,0.2);border:1px solid var(--border-card);
+                   color:var(--text-primary);border-radius:4px;font-size:12px;">
+          <button class="btn-refresh" style="margin-top:10px;width:100%;" id="btn-save-wl-url">Save Watchlist URL</button>
         </div>
         <div class="kpi-card" style="margin-top: 16px;">
           <div class="kpi-label">Data Source</div>
@@ -1094,7 +1158,8 @@
     // ==================== CONFIG ====================
     const CONFIG = {
       finnhubKey: localStorage.getItem('finnhub_key') || 'd7msd89r01qngrvp921gd7msd89r01qngrvp9220',
-      fmpKey:     localStorage.getItem('fmp_key')     || 'QVxsOmoXts9EWyubaf4cCjul95N6ZrIX',
+      fmpKey:        localStorage.getItem('fmp_key')        || 'QVxsOmoXts9EWyubaf4cCjul95N6ZrIX',
+      watchlistUrl: localStorage.getItem('watchlist_url') || 'https://script.google.com/macros/s/AKfycbymU5sDHR3jTO-h5hw78ybePpARRVsEtAkpfwt9ZgEmWe5sIDY2UZZ9_FK5U0MG71eK/exec',
       googleSheetId: '1iCbyReT-V2_FxTL06GdA_0VL5rWcJvZx3q9d3bWdXpU',
       googleSheetRange: 'Sheet1!B4:H33',
       stalePriceThresholdMs: 60 * 60 * 1000,   // 1 hour
@@ -1179,6 +1244,7 @@
       if (tabName === 'snapshot') renderSnapshot();
       if (tabName === 'news') fetchNews('general');
       if (tabName === 'planning') renderRSUCards();
+      if (tabName === 'watchlist') loadWatchlist();
     }
 
     // ==================== CONFIG MANAGEMENT ====================
@@ -1197,6 +1263,19 @@
           alert('Configuration saved!');
         } else {
           alert('Please enter a Finnhub API key');
+        }
+      });
+
+      const savedWlUrl = localStorage.getItem('watchlist_url');
+      if (savedWlUrl) { CONFIG.watchlistUrl = savedWlUrl; document.getElementById('wl-url-input').value = savedWlUrl; }
+
+      document.getElementById('btn-save-wl-url').addEventListener('click', () => {
+        const url = document.getElementById('wl-url-input').value.trim();
+        if (url) {
+          localStorage.setItem('watchlist_url', url);
+          CONFIG.watchlistUrl = url;
+          const btn = document.getElementById('btn-save-wl-url');
+          btn.textContent = '✓ Saved'; setTimeout(() => btn.textContent = 'Save Watchlist URL', 2000);
         }
       });
 
@@ -1992,6 +2071,164 @@
         } catch (e) {
           if (e.name !== 'AbortError') { await doCopy(); }
         }
+      });
+    });
+
+    // ==================== WATCHLIST ====================
+    let watchlistState = { items: [] };
+    const WL_SCRIPT = () => CONFIG.watchlistUrl;
+
+    function callWatchlist(params) {
+      return new Promise((resolve, reject) => {
+        if (!WL_SCRIPT()) { reject(new Error('No watchlist URL — add it in Settings')); return; }
+        const cbName = '__wl_' + Date.now();
+        const url    = WL_SCRIPT() + '?' + new URLSearchParams({ ...params, callback: cbName }).toString();
+        const script = document.createElement('script');
+        const timer  = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('Timeout')); }, 12000);
+        window[cbName] = (data) => { clearTimeout(timer); delete window[cbName]; script.remove(); resolve(data); };
+        script.onerror = () => { clearTimeout(timer); delete window[cbName]; reject(new Error('Script load failed')); };
+        script.src = url;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function loadWatchlist() {
+      const status = document.getElementById('wl-status');
+      const tbody  = document.getElementById('wl-body');
+      if (!WL_SCRIPT()) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--warning);padding:20px;">Add your Watchlist Script URL in ⚙️ Settings first.</td></tr>';
+        return;
+      }
+      status.textContent = 'Loading…';
+      try {
+        const data = await callWatchlist({ action: 'list' });
+        watchlistState.items = Array.isArray(data) ? data : [];
+        status.textContent = '';
+        renderWatchlistTable();
+        fetchWatchlistPrices();
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--negative)">Failed to load: ${e.message}</span>`;
+        tbody.innerHTML  = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:16px;">Could not reach watchlist script.</td></tr>';
+      }
+    }
+
+    function renderWatchlistTable() {
+      const tbody = document.getElementById('wl-body');
+      if (watchlistState.items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:20px;">No tickers yet — add one above.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = watchlistState.items.map(item => {
+        const p      = item._price || {};
+        const price  = p.current != null ? `$${p.current.toFixed(2)}` : '—';
+        const dPct   = p.dailyPct != null ? p.dailyPct : null;
+        const dStr   = dPct != null ? `${dPct >= 0 ? '▲' : '▼'}${Math.abs(dPct).toFixed(2)}%` : '—';
+        const dCls   = dPct != null ? (dPct >= 0 ? 'value-positive' : 'value-negative') : '';
+        const wk52   = p.pct52 != null ? `${p.pct52}% of range` : '—';
+        return `<tr>
+          <td style="font-weight:700;color:var(--accent-blue);cursor:pointer;" onclick="openDrillDown('${item.ticker}')">${item.ticker}</td>
+          <td>${price}</td>
+          <td class="${dCls}">${dStr}</td>
+          <td>${wk52}</td>
+          <td style="color:var(--text-secondary);font-size:12px;">${item.note || '—'}</td>
+          <td style="color:var(--text-secondary);font-size:12px;">${item.added || ''}</td>
+          <td><button class="btn-small" onclick="removeWatchlistTicker('${item.ticker}')">✕</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function fetchWatchlistPrices() {
+      if (!CONFIG.finnhubKey) return;
+      for (const item of watchlistState.items) {
+        try {
+          const [qRes, mRes] = await Promise.all([
+            fetch(`https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${CONFIG.finnhubKey}`),
+            fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${item.ticker}&metric=all&token=${CONFIG.finnhubKey}`),
+          ]);
+          const q  = await qRes.json();
+          const mt = (await mRes.json()).metric || {};
+          const h52 = mt['52WeekHigh'], l52 = mt['52WeekLow'];
+          item._price = {
+            current:  q.c,
+            dailyPct: q.dp,
+            pct52:    (h52 && l52 && q.c) ? Math.round(((q.c - l52) / (h52 - l52)) * 100) : null,
+          };
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 150));
+      }
+      renderWatchlistTable();
+    }
+
+    async function addWatchlistTicker() {
+      const tickerInput = document.getElementById('wl-ticker');
+      const noteInput   = document.getElementById('wl-note');
+      const status      = document.getElementById('wl-status');
+      const ticker      = tickerInput.value.trim().toUpperCase();
+      if (!ticker) { tickerInput.style.outline = '2px solid var(--negative)'; setTimeout(() => tickerInput.style.outline = '', 1500); return; }
+      const btn = document.getElementById('btn-wl-add');
+      btn.textContent = 'Adding…'; btn.disabled = true;
+      status.textContent = '';
+      try {
+        await callWatchlist({ action: 'add', ticker, note: noteInput.value.trim() });
+        tickerInput.value = ''; noteInput.value = '';
+        status.innerHTML = `<span style="color:var(--positive)">✓ ${ticker} added to watchlist</span>`;
+        await loadWatchlist();
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--negative)">Failed: ${e.message}</span>`;
+      } finally { btn.textContent = '+ Add'; btn.disabled = false; }
+    }
+
+    async function removeWatchlistTicker(ticker) {
+      if (!confirm(`Remove ${ticker} from watchlist?`)) return;
+      const status = document.getElementById('wl-status');
+      try {
+        await callWatchlist({ action: 'remove', ticker });
+        status.innerHTML = `<span style="color:var(--text-secondary)">${ticker} removed</span>`;
+        await loadWatchlist();
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--negative)">Failed: ${e.message}</span>`;
+      }
+    }
+
+    function buildWatchlistAIPrompt() {
+      const usdNis    = portfolioState.marketData.usdNis || 3.0;
+      const portfolio = portfolioState.holdings.map(h => h.ticker).join(', ');
+      const watchlist = watchlistState.items.map(i => i.ticker).join(', ') || 'none yet';
+      return `# Investment Ideas Request
+
+## My Current Portfolio
+${portfolio}
+
+## My Current Watchlist
+${watchlist}
+
+## My Investment Profile
+- Growth-oriented, comfortable with leverage and crypto
+- ~95% USD-denominated portfolio, Israeli investor (NIS/USD rate matters)
+- Medium-term horizon for accessible portfolio
+- Upcoming liquidity events in Sep 2026 (RSU vests, potential career transition)
+
+## Request
+Please suggest **3 to 5 new investment ideas** I should consider adding to my watchlist.
+
+Criteria:
+- **Diversified**: Different from what I already hold — cover varied industries, geographies, and instrument types (individual stocks, ETFs, crypto, commodities)
+- **Attractive price**: Not overextended, ideally at a reasonable valuation or technical support level
+- **Technical setup**: Positive momentum or a clear technical catalyst (breakout, support, trend)
+- **Clear rationale**: Explain WHY each idea makes sense right now — macro, sector, catalyst
+- **Good sentiment**: Analyst consensus or market sentiment should be constructive
+
+For each idea provide: Ticker, Name, Why now, Key risk, and suggested position size relative to a portfolio of ~$190K USD.`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btn-wl-add').addEventListener('click', addWatchlistTicker);
+      document.getElementById('wl-ticker').addEventListener('keydown', e => { if (e.key === 'Enter') addWatchlistTicker(); });
+
+      document.getElementById('btn-wl-ai').addEventListener('click', () => {
+        document.getElementById('claude-question').value = buildWatchlistAIPrompt();
+        switchTab('claude');
+        setTimeout(() => document.getElementById('btn-claude-prepare').click(), 100);
       });
     });
 
