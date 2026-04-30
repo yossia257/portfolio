@@ -757,7 +757,6 @@
   </style>
 </head>
 <body>
-  <div id="diag" style="position:fixed;bottom:10px;right:10px;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;padding:8px 12px;font-size:12px;z-index:9999;border-radius:6px;font-family:monospace;">HTML loaded</div>
   <header>
     <div class="header-top">
       <div class="header-title">
@@ -1105,19 +1104,6 @@
   </div>
 
   <script>
-    window.onerror = function(msg, src, line) {
-      var d = document.createElement('div');
-      d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:12px;font-size:13px;z-index:99999;font-family:monospace;white-space:pre-wrap;';
-      d.textContent = 'JS ERROR line ' + line + ': ' + msg;
-      document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function(){document.body.appendChild(d);});
-    };
-    // Sync diagnostic
-    (function(){ var d=document.getElementById('diag'); if(d) d.textContent='JS: module running'; })();
-    document.addEventListener('DOMContentLoaded', function() {
-      var d=document.getElementById('diag');
-      if(d) d.textContent='JS: DCL fired | tabs:'+document.querySelectorAll('.tab-btn').length+' | tip:'+(document.getElementById('tip-card')?'found':'MISSING');
-    });
-
     // ==================== CONFIG ====================
     const CONFIG = {
       finnhubKey: localStorage.getItem('finnhub_key') || 'd7msd89r01qngrvp921gd7msd89r01qngrvp9220',
@@ -1549,6 +1535,8 @@
         panwChangeEl.textContent = `${panw.changePercent > 0 ? '▲' : '▼'} ${Math.abs(panw.changePercent).toFixed(2)}%`;
         panwChangeEl.className = `ticker-change ${panw.changePercent > 0 ? 'positive' : 'negative'}`;
       }
+    (function(){ var d=document.getElementById('diag'); if(d) d.textContent='QUARTER 1 OK (1-432)'; })();
+  </script><script>
     }
 
     // ==================== RENDER HOLDINGS TABLE ====================
@@ -1975,10 +1963,6 @@
       const copyBtn    = document.getElementById('btn-claude-copy');
       const openBtn    = document.getElementById('btn-claude-open');
       const shareBtn   = document.getElementById('btn-claude-share');
-    // ── FIRST HALF PARSED OK ──
-    (function(){ var d=document.getElementById('diag'); if(d) d.textContent='FIRST HALF OK (line 871 of 1742)'; })();
-  </script>
-  <script>
       const promptBox  = document.getElementById('claude-prompt-box');
       const promptText = document.getElementById('claude-prompt-text');
       const copyStatus = document.getElementById('claude-copy-status');
