@@ -2884,65 +2884,8 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
       document.getElementById('btn-refresh-prices').addEventListener('click', fetchPrices);
     }
 
-    // ==================== PIN GATE ====================
-    (function() {
-      // Simple synchronous PIN check — no crypto.subtle (works on all browsers/WebViews)
-      const PIN_B64 = 'MTg1MA==';  // btoa('1850')
-      const STORAGE = 'portfolio_auth';
-      const DAYS    = 30;
-
-      function isUnlocked() {
-        try {
-          var val = JSON.parse(localStorage.getItem(STORAGE) || 'null');
-          return val && val.exp > Date.now();
-        } catch (e) { return false; }
-      }
-
-      function unlock() {
-        localStorage.setItem(STORAGE, JSON.stringify({ exp: Date.now() + DAYS * 86400 * 1000 }));
-        document.getElementById('pin-gate').classList.add('hidden');
-      }
-
-      // URL-based unlock: navigate to ?pin=1850 to unlock without DevTools
-      try {
-        var urlPin = new URLSearchParams(window.location.search).get('pin');
-        if (urlPin && btoa(urlPin) === PIN_B64) {
-          unlock();
-          history.replaceState({}, '', window.location.pathname);
-          return;
-        }
-      } catch (e) {}
-
-      if (isUnlocked()) {
-        document.getElementById('pin-gate').classList.add('hidden');
-        return;
-      }
-
-      var input = document.getElementById('pin-input');
-      var btn   = document.getElementById('pin-submit');
-      var err   = document.getElementById('pin-error');
-
-      function checkAndUnlock() {
-        var pin = input.value.trim();
-        if (!pin) return;
-        try {
-          if (btoa(pin) === PIN_B64) {
-            unlock();
-          } else {
-            err.textContent = 'Incorrect PIN — try again';
-            input.classList.add('error');
-            input.value = '';
-            setTimeout(function() { input.classList.remove('error'); err.textContent = ''; }, 1400);
-            input.focus();
-          }
-        } catch (e) {
-          err.textContent = 'Browser error: ' + e.message;
-        }
-      }
-
-      btn.addEventListener('click', checkAndUnlock);
-      input.addEventListener('keydown', function(e) { if (e.key === 'Enter') checkAndUnlock(); });
-    })();
+    // PIN gate temporarily disabled
+    document.getElementById('pin-gate').classList.add('hidden');
   </script>
 </body>
 </html>
