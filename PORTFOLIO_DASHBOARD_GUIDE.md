@@ -1,6 +1,6 @@
 # Yossi's Portfolio Dashboard — Architecture & Operations Guide
 
-> Last updated: 2026-04-28
+> Last updated: 2026-04-30
 > Reference document for how everything works, what accounts exist, and how to maintain it.
 
 ---
@@ -89,9 +89,17 @@ GitHub Pages ──────────────── serves the dashboa
 **Role:** Live prices for all USD stocks, ETFs, indices (QQQ, SPY, PANW). Also company news, analyst recommendations, and fundamental metrics (PE, beta, 52-week range).
 **API key:** `d7msd89r01qngrvp921gd7msd89r01qngrvp9220`
 **Free tier limits:** 60 API calls/minute
-**What works on free tier:** Quote prices, news, analyst recommendations, stock metrics
-**What requires paid tier:** Historical candles (RSI/SMA indicators), price targets
+**What works on free tier:** Quote prices, news, analyst buy/hold/sell consensus, stock metrics
+**What requires paid tier:** Price targets, historical candles
+**RSI/SMA source:** Historical candles come from Yahoo Finance via Cloudflare Worker (not Finnhub)
 **Login:** finnhub.io
+
+### FMP (Financial Modeling Prep)
+**Role:** Analyst price targets (mean, high, low) shown in the drill-down below the buy/hold/sell consensus.
+**API key:** `QVxsOmoXts9EWyubaf4cCjul95N6ZrIX`
+**Free tier limits:** 250 API calls/day — more than sufficient
+**Endpoint used:** `GET /api/v3/price-target-consensus/{symbol}`
+**Login:** financialmodelingprep.com
 
 ### CoinGecko
 **Role:** Bitcoin price and 24-hour change percentage.
@@ -189,6 +197,7 @@ Change `H33` to `H40` (or however many rows you need).
 | **GitHub** | `yossia257` @ github.com | `portfolio` repo with dashboard HTML | Free |
 | **Cloudflare** | (your email) @ cloudflare.com | `portfolio-proxy` Worker | Free |
 | **Finnhub** | (your email) @ finnhub.io | API key `d7msd89r...` | Free |
+| **FMP** | (your email) @ financialmodelingprep.com | API key `QVxsOmo...` | Free (250 calls/day) |
 | **Google** | (your Google account) | `Yossi_Portfolio` spreadsheet | Free |
 | **CoinGecko** | None (no account) | — | Free |
 | **open.er-api.com** | None (no account) | — | Free |
