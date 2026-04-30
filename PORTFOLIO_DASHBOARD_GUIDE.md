@@ -1,6 +1,6 @@
 # Yossi's Portfolio Dashboard — Architecture & Operations Guide
 
-> Last updated: 2026-04-30
+> Last updated: 2026-05-01
 > Reference document for how everything works, what accounts exist, and how to maintain it.
 
 ---
@@ -101,6 +101,22 @@ GitHub Pages ──────────────── serves the dashboa
 **Endpoint used:** `GET /api/v3/price-target-consensus/{symbol}`
 **Login:** financialmodelingprep.com
 
+### Anthropic Claude API
+**Role:** Generates automatic daily investment ideas shown in the 👀 Watchlist tab. Suggests 3–5 diversified ideas (stocks, ETFs, crypto, commodities) with rationale, risk, and sizing — refreshed once per day, cached in localStorage.
+**API key:** Stored securely in Cloudflare Worker environment variable `ANTHROPIC_KEY` — never in browser code.
+**Model:** `claude-sonnet-4-6`
+**Cost:** ~$0.004 per generation (~$1.20/month at daily frequency)
+**Endpoint:** Proxied through Cloudflare Worker at `/claude` route — dashboard never calls Anthropic directly
+**Login:** console.anthropic.com
+
+### Google Apps Script (Watchlist)
+**Role:** Read/write backend for the 👀 Watchlist tab. Stores watched tickers in a "Watchlist" tab of the Google Sheet, syncing across all devices.
+**Script URL:** Stored in `localStorage['watchlist_url']` and CONFIG (not hardcoded in GitHub)
+**How it works:** JSONP calls (same pattern as portfolio data loading) — no CORS issues, works from any device
+**Actions:** `action=list`, `action=add&ticker=X&note=Y`, `action=remove&ticker=X`
+**Security:** URL is a long random string; anyone with it can read/modify the watchlist (not portfolio data). Low risk.
+**Deploy:** Google Sheet → Extensions → Apps Script → Deploy as Web App (Execute as: Me, Anyone)
+
 ### CoinGecko
 **Role:** Bitcoin price and 24-hour change percentage.
 **No account or API key required.**
@@ -130,14 +146,15 @@ A deliberate choice for simplicity. A professional app would split code into doz
 
 | Tab | What it shows |
 |---|---|
-| 💼 Portfolio | Live holdings table with P&L, daily change, total value. KPI cards. |
+| 💼 Portfolio | Live holdings table (Ticker, Daily%, Ext Hrs%, P&L%, Value, Rate, Qty). KPI cards. Sortable columns. |
 | 📈 Market | USD/NIS, BTC, QQQ, SPY, PANW. Allocation pie chart. Currency exposure chart. |
 | ⚡ Signals | Auto-generated alerts based on P&L thresholds. Hard-coded watch flags for BABA, LGVN. |
 | 📰 News | Market news by category (Finnhub). "My Holdings" fetches last 7 days per stock. |
 | 🎓 Learn | Rotating daily tips on investing, leverage, tax, strategy. |
 | 🤖 Ask Claude | Builds a full portfolio prompt, copies or shares to Claude app. |
 | 📋 Planning | RSU vest income estimates (live PANW price), retention bonus, key events timeline. |
-| ⚙️ Settings | Finnhub key, Google Sheet info, data source status. |
+| 👀 Watchlist | Track tickers outside portfolio. Syncs to Google Sheet. Auto-generates daily AI investment ideas via Claude API. Add recommendations to watchlist with one tap. |
+| ⚙️ Settings | Finnhub key, FMP key, Watchlist Script URL, Google Sheet info. |
 
 **Drill-down panel:** Click any USD ticker to see Technical data (price, 52-week range, beta, PE, EPS) and Analyst sentiment (buy/hold/sell consensus from Finnhub).
 
@@ -198,6 +215,7 @@ Change `H33` to `H40` (or however many rows you need).
 | **Cloudflare** | (your email) @ cloudflare.com | `portfolio-proxy` Worker | Free |
 | **Finnhub** | (your email) @ finnhub.io | API key `d7msd89r...` | Free |
 | **FMP** | (your email) @ financialmodelingprep.com | API key `QVxsOmo...` | Free (250 calls/day) |
+| **Anthropic** | (your email) @ console.anthropic.com | API key in Cloudflare Worker env var `ANTHROPIC_KEY` | ~$1.20/month |
 | **Google** | (your Google account) | `Yossi_Portfolio` spreadsheet | Free |
 | **CoinGecko** | None (no account) | — | Free |
 | **open.er-api.com** | None (no account) | — | Free |
@@ -241,5 +259,5 @@ Change `H33` to `H40` (or however many rows you need).
 | Analyst price targets | Not available | Requires Finnhub paid tier. |
 | Write-back to Google Sheet | Not implemented | Would require Google OAuth2 login — significant complexity. |
 | Table column sorting | Headers styled as clickable, not functional | Future enhancement. |
-| Claude API integration | Planned | Would enable Ask Claude to return answers inline. Requires Anthropic API key (~$1–2/month). |
+| Claude API — Ask Claude inline | Planned | Direct Q&A in the Ask Claude tab without copying to clipboard. Anthropic key already set up — just needs wiring. |
 | TA-125 index | Manual only | No free API for TASE index. Shows "—" in market ticker. |

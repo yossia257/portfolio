@@ -1090,14 +1090,16 @@
 
       <!-- AI Recommendations -->
       <div style="background:var(--bg-card);border:1px solid var(--border-card);border-radius:8px;padding:20px;">
-        <div style="font-weight:700;margin-bottom:8px;color:var(--accent-purple);">🤖 AI Investment Ideas</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
-          Ask Claude to suggest 3–5 diversified investment ideas — across industries, geographies, instruments (stocks, ETFs, crypto) —
-          based on attractive valuations, technical signals, and sentiment.
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-weight:700;color:var(--accent-purple);">🤖 Daily Investment Ideas</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="wl-ai-ts" style="font-size:11px;color:var(--text-secondary);"></span>
+            <button id="btn-wl-ai-refresh" class="btn-refresh"
+              style="font-size:12px;padding:5px 12px;background:var(--accent-purple);">↻ Refresh</button>
+          </div>
         </div>
-        <button id="btn-wl-ai" class="btn-refresh" style="width:100%;background:var(--accent-purple);">
-          Get Investment Ideas from Claude →
-        </button>
+        <div id="wl-ai-status" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
+        <div id="wl-ai-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
       </div>
     </section>
 
@@ -1244,7 +1246,7 @@
       if (tabName === 'snapshot') renderSnapshot();
       if (tabName === 'news') fetchNews('general');
       if (tabName === 'planning') renderRSUCards();
-      if (tabName === 'watchlist') loadWatchlist();
+      if (tabName === 'watchlist') { loadWatchlist(); generateDailyRecommendations(); }
     }
 
     // ==================== CONFIG MANAGEMENT ====================
@@ -1377,7 +1379,8 @@
 
     // ==================== FETCH PRICES ====================
     // Proxy is needed for Israeli stocks (Yahoo Finance has no CORS headers).
-    const YAHOO_PROXY = 'https://portfolio-proxy.yossia257.workers.dev/proxy/yahoo/';
+    const YAHOO_PROXY   = 'https://portfolio-proxy.yossia257.workers.dev/proxy/yahoo/';
+    const CLAUDE_PROXY  = 'https://portfolio-proxy.yossia257.workers.dev/claude';
 
     async function fetchPrices() {
       if (!CONFIG.finnhubKey) return;
@@ -2190,46 +2193,137 @@
       }
     }
 
-    function buildWatchlistAIPrompt() {
-      const usdNis    = portfolioState.marketData.usdNis || 3.0;
+    // ── Daily AI recommendations ──────────────────────────────────────────────
+    function buildAIPrompt() {
       const portfolio = portfolioState.holdings.map(h => h.ticker).join(', ');
-      const watchlist = watchlistState.items.map(i => i.ticker).join(', ') || 'none yet';
-      return `# Investment Ideas Request
+      const watchlist = watchlistState.items.map(i => i.ticker).join(', ') || 'none';
+      return `You are a financial analyst. Suggest 3-5 diversified investment ideas for an Israeli investor.
 
-## My Current Portfolio
-${portfolio}
+Current portfolio: ${portfolio}
+Current watchlist: ${watchlist}
+Portfolio value: ~$190K USD, growth-oriented, comfortable with leverage & crypto.
 
-## My Current Watchlist
-${watchlist}
+Requirements:
+- Diversified across different industries, geographies, and instrument types (stocks, ETFs, crypto, commodities)
+- Attractive valuation or technical setup (not overextended)
+- Clear catalyst or rationale for NOW
+- Good analyst sentiment / market momentum
+- Different from positions already held
 
-## My Investment Profile
-- Growth-oriented, comfortable with leverage and crypto
-- ~95% USD-denominated portfolio, Israeli investor (NIS/USD rate matters)
-- Medium-term horizon for accessible portfolio
-- Upcoming liquidity events in Sep 2026 (RSU vests, potential career transition)
+Respond ONLY with a valid JSON array, no other text, no markdown:
+[
+  {
+    "ticker": "TICKER",
+    "name": "Full Name",
+    "type": "Stock|ETF|Crypto|Commodity",
+    "sector": "Technology|Healthcare|...",
+    "why": "2-3 sentence rationale for now",
+    "risk": "Key risk in one sentence",
+    "sizing": "Suggested % of portfolio"
+  }
+]`;
+    }
 
-## Request
-Please suggest **3 to 5 new investment ideas** I should consider adding to my watchlist.
+    async function generateDailyRecommendations(force = false) {
+      const today   = new Date().toDateString();
+      const tsEl    = document.getElementById('wl-ai-ts');
+      const statusEl = document.getElementById('wl-ai-status');
+      const cardsEl = document.getElementById('wl-ai-cards');
 
-Criteria:
-- **Diversified**: Different from what I already hold — cover varied industries, geographies, and instrument types (individual stocks, ETFs, crypto, commodities)
-- **Attractive price**: Not overextended, ideally at a reasonable valuation or technical support level
-- **Technical setup**: Positive momentum or a clear technical catalyst (breakout, support, trend)
-- **Clear rationale**: Explain WHY each idea makes sense right now — macro, sector, catalyst
-- **Good sentiment**: Analyst consensus or market sentiment should be constructive
+      // Check cache
+      if (!force) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('daily_recs') || '{}');
+          if (cached.date === today && Array.isArray(cached.items) && cached.items.length) {
+            if (tsEl) tsEl.textContent = `Generated today at ${cached.time}`;
+            renderAICards(cached.items);
+            return;
+          }
+        } catch (_) {}
+      }
 
-For each idea provide: Ticker, Name, Why now, Key risk, and suggested position size relative to a portfolio of ~$190K USD.`;
+      if (statusEl) statusEl.textContent = '🤖 Generating today's ideas…';
+      if (cardsEl)  cardsEl.innerHTML = '';
+      if (tsEl)     tsEl.textContent  = '';
+
+      try {
+        const resp = await fetch(CLAUDE_PROXY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1200,
+            messages: [{ role: 'user', content: buildAIPrompt() }]
+          })
+        });
+
+        const data  = await resp.json();
+        const text  = data.content?.[0]?.text || '';
+        const items = JSON.parse(text.trim());
+
+        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        localStorage.setItem('daily_recs', JSON.stringify({ date: today, time, items }));
+
+        if (statusEl) statusEl.textContent = '';
+        if (tsEl)     tsEl.textContent = `Generated today at ${time}`;
+        renderAICards(items);
+      } catch (e) {
+        if (statusEl) statusEl.innerHTML = `<span style="color:var(--negative)">Could not generate: ${e.message}</span>`;
+      }
+    }
+
+    function renderAICards(items) {
+      const cardsEl = document.getElementById('wl-ai-cards');
+      if (!cardsEl || !items?.length) return;
+
+      const TYPE_COLOR = { Stock: 'var(--accent-blue)', ETF: 'var(--positive)', Crypto: 'var(--warning)', Commodity: '#a78bfa' };
+
+      cardsEl.innerHTML = items.map(item => {
+        const col    = TYPE_COLOR[item.type] || 'var(--text-secondary)';
+        const inWl   = watchlistState.items.some(w => w.ticker === item.ticker);
+        const inPort = portfolioState.holdings.some(h => h.ticker === item.ticker);
+        const badge  = inPort ? '<span style="font-size:10px;background:rgba(56,189,248,0.15);color:var(--accent-blue);padding:2px 6px;border-radius:3px;margin-left:6px;">In portfolio</span>'
+                     : inWl  ? '<span style="font-size:10px;background:rgba(74,222,128,0.15);color:var(--positive);padding:2px 6px;border-radius:3px;margin-left:6px;">In watchlist</span>'
+                     : '';
+        return `<div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-card);border-left:3px solid ${col};border-radius:8px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div>
+              <span style="font-size:15px;font-weight:800;color:${col};">${item.ticker}</span>
+              ${badge}
+              <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">${item.name}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+              <span style="font-size:11px;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:10px;color:${col};">${item.type}</span>
+              ${(!inWl && !inPort) ? `<button onclick="addFromAI('${item.ticker}','${(item.why||'').replace(/'/g,"\'")}',this)"
+                style="font-size:11px;padding:4px 10px;border-radius:4px;border:none;background:var(--accent-blue);color:#0f172a;font-weight:700;cursor:pointer;">
+                + Watchlist</button>` : ''}
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-primary);margin-bottom:6px;">${item.why}</div>
+          <div style="font-size:11px;color:var(--negative);">⚠ ${item.risk}</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Suggested sizing: ${item.sizing}</div>
+        </div>`;
+      }).join('');
+    }
+
+    async function addFromAI(ticker, note, btn) {
+      btn.textContent = '…'; btn.disabled = true;
+      try {
+        await callWatchlist({ action: 'add', ticker, note });
+        watchlistState.items.push({ ticker, note, added: new Date().toLocaleDateString() });
+        renderAICards(JSON.parse(localStorage.getItem('daily_recs') || '{}').items || []);
+        renderWatchlistTable();
+        document.getElementById('wl-status').innerHTML = `<span style="color:var(--positive)">✓ ${ticker} added to watchlist</span>`;
+        setTimeout(() => { const el = document.getElementById('wl-status'); if (el) el.textContent = ''; }, 3000);
+      } catch (e) {
+        btn.textContent = '+ Watchlist'; btn.disabled = false;
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('btn-wl-add').addEventListener('click', addWatchlistTicker);
       document.getElementById('wl-ticker').addEventListener('keydown', e => { if (e.key === 'Enter') addWatchlistTicker(); });
-
-      document.getElementById('btn-wl-ai').addEventListener('click', () => {
-        document.getElementById('claude-question').value = buildWatchlistAIPrompt();
-        switchTab('claude');
-        setTimeout(() => document.getElementById('btn-claude-prepare').click(), 100);
-      });
+      document.getElementById('btn-wl-ai-refresh').addEventListener('click', () => generateDailyRecommendations(true));
     });
 
     // ==================== RSU & INCOME EVENTS ====================
