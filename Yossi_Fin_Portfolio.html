@@ -1716,6 +1716,11 @@
           </div>
         </div>
 
+        <div class="drill-section" id="drill-extended-section" style="display:none;">
+          <div class="drill-section-title">Extended Hours</div>
+          <div id="drill-extended" style="font-size: 13px;"></div>
+        </div>
+
         <div class="drill-section">
           <div class="drill-section-title">Technical</div>
           <div id="drill-technical" style="font-size: 13px; color: var(--text-secondary);">Loading…</div>
@@ -2211,11 +2216,10 @@
     }
 
     async function fetchDrillDownTechnical(ticker) {
-      // Note: el is fetched AFTER await to avoid stale DOM reference
-      // (if drill-down is reopened mid-flight, old el would be detached)
-      if (!CONFIG.finnhubKey) return;
+      const el = document.getElementById('drill-technical');
+      if (!el || !CONFIG.finnhubKey) return;
+      el.innerHTML = '<span style="color:var(--text-secondary)">Loading…</span>';
       try {
-        // Fetch quote + metrics from Finnhub; fetch candles + meta via Cloudflare Worker → Yahoo Finance
         const [quoteRes, metricRes, candleRes] = await Promise.all([
           fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${CONFIG.finnhubKey}`),
           fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${CONFIG.finnhubKey}`),
@@ -2225,8 +2229,6 @@
         const m  = await metricRes.json();
         const cd = await candleRes.json();
         const mt = m.metric || {};
-        const el = document.getElementById('drill-technical');  // get AFTER await
-        if (!el) return;
 
         const fmt = (v, prefix='$', dec=2) => v != null && !isNaN(v) ? `${prefix}${Number(v).toFixed(dec)}` : '—';
 
@@ -2283,24 +2285,7 @@
               <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Day range</td>
               <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${(q.l&&q.h)?`${fmt(q.l)} – ${fmt(q.h)}`:'—'}</td>
             </tr>
-            ${(()=>{
-              const meta = cd.chart?.result?.[0]?.meta || {};
-              const pre  = meta.preMarketPrice;
-              const post = meta.postMarketPrice;
-              if (!pre && !post) return '<tr><td colspan="2" style="color:var(--border-card);font-size:11px;padding:4px 0;border-bottom:1px solid var(--border-card);">Pre/post market: only shown outside regular trading hours</td></tr>';
-              const preChange  = pre  ? ((pre  - (q.pc||pre))  / (q.pc||pre)  * 100) : null;
-              const postChange = post ? ((post - (q.c ||post)) / (q.c ||post) * 100) : null;
-              const fmtExt = (p, chg) => p ? `$${p.toFixed(2)} <span style="color:${chg>=0?'var(--positive)':'var(--negative)'}">(${chg>=0?'+':''}${chg?.toFixed(2)}%)</span>` : '—';
-              return `
-              ${pre ? `<tr>
-                <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Pre-market</td>
-                <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmtExt(pre, preChange)}</td>
-              </tr>` : ''}
-              ${post ? `<tr>
-                <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">After-hours</td>
-                <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmtExt(post, postChange)}</td>
-              </tr>` : ''}`;
-            })()}
+            
             <tr>
               <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">52-wk range</td>
               <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(low52)} – ${fmt(high52)}</td>
@@ -2339,21 +2324,47 @@
               <td style="text-align:right;font-weight:600;padding:4px 0;">${mktCap?'$'+(mktCap/1000).toFixed(1)+'B':'—'}</td>
             </tr>
           </table>`;
+
+        // Extended hours section (only during pre/post market)
+        const meta  = cd.chart?.result?.[0]?.meta || {};
+        const pre   = meta.preMarketPrice;
+        const post  = meta.postMarketPrice;
+        const extSec = document.getElementById('drill-extended-section');
+        const extEl  = document.getElementById('drill-extended');
+        if ((pre || post) && extSec && extEl) {
+          extSec.style.display = 'block';
+          const pc = q.pc || q.c || 0;
+          const fmt2 = (p, base) => {
+            const chg = base ? ((p - base) / base * 100) : 0;
+            const col = chg >= 0 ? 'var(--positive)' : 'var(--negative)';
+            return `<strong>$${p.toFixed(2)}</strong> <span style="color:${col}">(${chg>=0?'+':''}${chg.toFixed(2)}%)</span>`;
+          };
+          extEl.innerHTML = `
+            <table style="width:100%;font-size:12px;border-collapse:collapse;">
+              ${pre ? `<tr>
+                <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Pre-market</td>
+                <td style="text-align:right;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt2(pre, pc)}</td>
+              </tr>` : ''}
+              ${post ? `<tr>
+                <td style="color:var(--text-secondary);padding:4px 0;">After-hours</td>
+                <td style="text-align:right;padding:4px 0;">${fmt2(post, q.c||pc)}</td>
+              </tr>` : ''}
+            </table>`;
+        }
       } catch (e) {
-        const el = document.getElementById('drill-technical');
-        if (el) el.textContent = 'Failed to load: ' + e.message;
+        el.textContent = 'Failed to load: ' + e.message;
         console.error('drill technical:', e);
       }
     }
 
     async function fetchDrillDownAnalyst(ticker) {
-      if (!CONFIG.finnhubKey) return;
+      const el = document.getElementById('drill-analyst');
+      if (!el || !CONFIG.finnhubKey) return;
+      el.innerHTML = '<span style="color:var(--text-secondary)">Loading analyst data…</span>';
       try {
         const recRes = await fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${CONFIG.finnhubKey}`);
         const recs = await recRes.json();
-        const el = document.getElementById('drill-analyst');  // get AFTER await
-        if (!el) return;
-        if (!recs || recs.length === 0) { el.textContent = 'No analyst data available.'; return; }
+        if (!Array.isArray(recs) || recs.length === 0) { el.textContent = 'No analyst data available.'; return; }
 
         const latest = recs[0];
         const total  = (latest.buy||0) + (latest.hold||0) + (latest.sell||0) + (latest.strongBuy||0) + (latest.strongSell||0);
@@ -2389,8 +2400,7 @@
             Analyst price target: not available on free tier
           </div>`;
       } catch (e) {
-        const el = document.getElementById('drill-analyst');
-        if (el) el.innerHTML = `<span style="color:var(--negative)">Could not load: ${e.message}</span>`;
+        el.innerHTML = `<span style="color:var(--negative)">Could not load: ${e.message}</span>`;
         console.error('drill analyst:', e);
       }
     }
