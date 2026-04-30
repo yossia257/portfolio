@@ -2829,7 +2829,7 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
     async function fetchFmpTarget(ticker, targetEl) {
       if (!targetEl) return;
       try {
-        const res  = await fetch(`https://financialmodelingprep.com/api/v3/price-target-consensus/${ticker}?apikey=${CONFIG.fmpKey}`);
+        const res  = await fetch(`https://financialmodelingprep.com/stable/price-target-consensus?symbol=${ticker}&apikey=${CONFIG.fmpKey}`);
         const data = await res.json();
         if (!Array.isArray(data) || !data[0]) { targetEl.textContent = 'No price target data'; return; }
         const pt      = data[0];
