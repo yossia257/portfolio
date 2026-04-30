@@ -2886,31 +2886,20 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
 
     // ==================== PIN GATE ====================
     (function() {
-      const HASH    = '202fd26f14d638ccb40975163ab0f05e1acf24c04a30708b3e0abfac44301a08';
-      const DAYS    = 30;
+      // Simple synchronous PIN check — no crypto.subtle (works on all browsers/WebViews)
+      const PIN_B64 = 'MTg1MA==';  // btoa('1850')
       const STORAGE = 'portfolio_auth';
-
-      // SHA-256 via crypto.subtle; fallback to btoa comparison for WebViews without crypto
-      async function checkPin(pin) {
-        try {
-          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
-          const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-          return hex === HASH;
-        } catch (_) {
-          try { return btoa(pin) === 'MTg1MA=='; } catch (_) { return false; }
-        }
-      }
+      const DAYS    = 30;
 
       function isUnlocked() {
         try {
-          const val = JSON.parse(localStorage.getItem(STORAGE) || 'null');
+          var val = JSON.parse(localStorage.getItem(STORAGE) || 'null');
           return val && val.exp > Date.now();
-        } catch { return false; }
+        } catch (e) { return false; }
       }
 
       function unlock() {
-        const exp = Date.now() + DAYS * 86400 * 1000;
-        localStorage.setItem(STORAGE, JSON.stringify({ exp }));
+        localStorage.setItem(STORAGE, JSON.stringify({ exp: Date.now() + DAYS * 86400 * 1000 }));
         document.getElementById('pin-gate').classList.add('hidden');
       }
 
@@ -2919,33 +2908,30 @@ Respond ONLY with a valid JSON array, no other text, no markdown:
         return;
       }
 
-      const input = document.getElementById('pin-input');
-      const btn   = document.getElementById('pin-submit');
-      const err   = document.getElementById('pin-error');
+      var input = document.getElementById('pin-input');
+      var btn   = document.getElementById('pin-submit');
+      var err   = document.getElementById('pin-error');
 
-      async function tryPin() {
-        const pin = input.value.trim();
+      function checkAndUnlock() {
+        var pin = input.value.trim();
         if (!pin) return;
-        btn.disabled = true;
         try {
-          if (await checkPin(pin)) {
+          if (btoa(pin) === PIN_B64) {
             unlock();
           } else {
             err.textContent = 'Incorrect PIN — try again';
             input.classList.add('error');
             input.value = '';
-            setTimeout(() => { input.classList.remove('error'); err.textContent = ''; }, 1400);
+            setTimeout(function() { input.classList.remove('error'); err.textContent = ''; }, 1400);
             input.focus();
           }
         } catch (e) {
-          err.textContent = 'Error: ' + e.message;
-        } finally {
-          btn.disabled = false;
+          err.textContent = 'Browser error: ' + e.message;
         }
       }
 
-      btn.addEventListener('click', tryPin);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') tryPin(); });
+      btn.addEventListener('click', checkAndUnlock);
+      input.addEventListener('keydown', function(e) { if (e.key === 'Enter') checkAndUnlock(); });
     })();
   </script>
 </body>
