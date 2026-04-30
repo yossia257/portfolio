@@ -1716,7 +1716,7 @@
           </div>
         </div>
 
-        <div class="drill-section" id="drill-extended-section" style="display:none;">
+        <div class="drill-section" id="drill-extended-section">
           <div class="drill-section-title">Extended Hours</div>
           <div id="drill-extended" style="font-size: 13px;"></div>
         </div>
@@ -2325,35 +2325,68 @@
             </tr>
           </table>`;
 
-        // Extended hours section (only during pre/post market)
-        const meta  = cd.chart?.result?.[0]?.meta || {};
-        const pre   = meta.preMarketPrice;
-        const post  = meta.postMarketPrice;
-        const extSec = document.getElementById('drill-extended-section');
-        const extEl  = document.getElementById('drill-extended');
-        if ((pre || post) && extSec && extEl) {
-          extSec.style.display = 'block';
-          const pc = q.pc || q.c || 0;
-          const fmt2 = (p, base) => {
-            const chg = base ? ((p - base) / base * 100) : 0;
-            const col = chg >= 0 ? 'var(--positive)' : 'var(--negative)';
-            return `<strong>$${p.toFixed(2)}</strong> <span style="color:${col}">(${chg>=0?'+':''}${chg.toFixed(2)}%)</span>`;
-          };
-          extEl.innerHTML = `
-            <table style="width:100%;font-size:12px;border-collapse:collapse;">
-              ${pre ? `<tr>
-                <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Pre-market</td>
-                <td style="text-align:right;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt2(pre, pc)}</td>
-              </tr>` : ''}
-              ${post ? `<tr>
-                <td style="color:var(--text-secondary);padding:4px 0;">After-hours</td>
-                <td style="text-align:right;padding:4px 0;">${fmt2(post, q.c||pc)}</td>
-              </tr>` : ''}
-            </table>`;
-        }
+        // Extended hours — fetch 2m intraday with pre/post included
+        fetchExtendedHours(ticker, q.pc || q.c, q.c);
       } catch (e) {
         el.textContent = 'Failed to load: ' + e.message;
         console.error('drill technical:', e);
+      }
+    }
+
+    async function fetchExtendedHours(ticker, prevClose, regClose) {
+      const extEl = document.getElementById('drill-extended');
+      if (!extEl) return;
+      extEl.innerHTML = '<span style="color:var(--text-secondary);font-size:12px;">Loading…</span>';
+      try {
+        const res  = await fetch(`${YAHOO_PROXY}${ticker}?interval=2m&range=1d&includePrePost=true`);
+        const data = await res.json();
+        const result = data.chart?.result?.[0];
+        if (!result) { extEl.textContent = 'N/A'; return; }
+
+        const meta      = result.meta || {};
+        const ts        = result.timestamp || [];
+        const closes    = result.indicators?.quote?.[0]?.close || [];
+        const tradePer  = meta.currentTradingPeriod?.regular || {};
+        const regStart  = tradePer.start || 0;
+        const regEnd    = tradePer.end   || 0;
+
+        // Find last non-null price outside regular market hours
+        let extPrice = null, extType = null, extTs = null;
+        for (let i = ts.length - 1; i >= 0; i--) {
+          if (!closes[i]) continue;
+          const t = ts[i];
+          if (regEnd && t > regEnd) { extPrice = closes[i]; extType = 'After-hours'; extTs = t; break; }
+          if (regStart && t < regStart) { extPrice = closes[i]; extType = 'Pre-market'; extTs = t; break; }
+        }
+
+        const fmt2 = (p, base) => {
+          if (!p) return '—';
+          const chg = base ? ((p - base) / base * 100) : 0;
+          const col = chg >= 0 ? 'var(--positive)' : 'var(--negative)';
+          const t = extTs ? new Date(extTs*1000).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) : '';
+          return `<strong>$${p.toFixed(2)}</strong> <span style="color:${col}">(${chg>=0?'+':''}${chg.toFixed(2)}%)</span> <span style="color:var(--text-secondary);font-size:11px;">${t} ET</span>`;
+        };
+
+        const base = extType === 'After-hours' ? (regClose || prevClose) : prevClose;
+
+        if (extPrice) {
+          extEl.innerHTML = `
+            <table style="width:100%;font-size:12px;border-collapse:collapse;">
+              <tr>
+                <td style="color:var(--text-secondary);padding:3px 0;">${extType}</td>
+                <td style="text-align:right;padding:3px 0;">${fmt2(extPrice, base)}</td>
+              </tr>
+              <tr>
+                <td style="color:var(--text-secondary);padding:3px 0;font-size:11px;">Regular close</td>
+                <td style="text-align:right;padding:3px 0;font-size:11px;">$${(regClose||prevClose||0).toFixed(2)}</td>
+              </tr>
+            </table>`;
+        } else {
+          extEl.innerHTML = '<span style="color:var(--text-secondary);font-size:12px;">N/A — market in regular session</span>';
+        }
+      } catch (e) {
+        const extEl2 = document.getElementById('drill-extended');
+        if (extEl2) extEl2.textContent = 'N/A';
       }
     }
 
