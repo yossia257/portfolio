@@ -223,13 +223,22 @@
       font-size: 12px;
       text-transform: uppercase;
       color: var(--text-secondary);
-      cursor: pointer;
       user-select: none;
+      white-space: nowrap;
     }
 
-    th:hover {
+    th.sortable {
+      cursor: pointer;
+    }
+
+    th.sortable:hover {
       color: var(--accent-blue);
     }
+
+    th.sort-asc  { color: var(--accent-blue); }
+    th.sort-desc { color: var(--accent-blue); }
+    th.sort-asc  .sort-ind::after { content: ' ▲'; }
+    th.sort-desc .sort-ind::after { content: ' ▼'; }
 
     td {
       padding: 12px;
@@ -870,17 +879,17 @@
         <table id="holdings-table">
           <thead>
             <tr>
-              <th class="col-ticker">Ticker</th>
-              <th class="col-name">Name</th>
-              <th class="col-qty">Qty</th>
+              <th class="col-ticker sortable" data-sort="ticker" title="Sort by ticker">Ticker <span class="sort-ind"></span></th>
+              <th class="col-name sortable" data-sort="name" title="Sort by name">Name <span class="sort-ind"></span></th>
+              <th class="col-qty sortable" data-sort="qty" title="Sort by quantity">Qty <span class="sort-ind"></span></th>
               <th class="col-buyprice">Buy Price</th>
-              <th class="col-current">Current</th>
-              <th class="col-value">Total Value (NIS)</th>
-              <th class="col-daily">Daily %</th>
-              <th class="col-pl">P&L %</th>
+              <th class="col-current sortable" data-sort="current" title="Sort by current price">Current <span class="sort-ind"></span></th>
+              <th class="col-value sortable" data-sort="value" title="Sort by total value">Value (NIS) <span class="sort-ind"></span></th>
+              <th class="col-daily sortable" data-sort="daily" title="Sort by daily change">Daily % <span class="sort-ind"></span></th>
+              <th class="col-pl sortable" data-sort="pl" title="Sort by P&amp;L">P&amp;L % <span class="sort-ind"></span></th>
               <th class="col-analyst">Analyst</th>
-              <th class="col-category">Category</th>
-              <th style="width: 40px;">Actions</th>
+              <th class="col-category sortable" data-sort="category" title="Sort by category">Category <span class="sort-ind"></span></th>
+              <th style="width: 40px;">—</th>
             </tr>
           </thead>
           <tbody id="holdings-body"></tbody>
@@ -1141,6 +1150,7 @@
       loadPortfolioFromGoogleSheets();
       renderKPIs();
       renderRSUCards();
+      initSortHeaders();
       setupEventListeners();
       fetchMarketData();
       renderTips();
@@ -1457,13 +1467,56 @@
     }
 
     // ==================== RENDER HOLDINGS TABLE ====================
+    let sortState = { col: null, dir: 1 };  // dir: 1=asc, -1=desc
+
+    function initSortHeaders() {
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.sort;
+          if (sortState.col === col) sortState.dir *= -1;
+          else { sortState.col = col; sortState.dir = 1; }
+          document.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+          th.classList.add(sortState.dir === 1 ? 'sort-asc' : 'sort-desc');
+          renderHoldingsTable();
+        });
+      });
+    }
+
+    function sortedHoldings() {
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+      const h = [...portfolioState.holdings];
+      if (!sortState.col) return h;
+      return h.sort((a, b) => {
+        let va, vb;
+        switch (sortState.col) {
+          case 'ticker':   va = a.ticker;    vb = b.ticker;    break;
+          case 'name':     va = a.name;      vb = b.name;      break;
+          case 'qty':      va = a.qty;       vb = b.qty;       break;
+          case 'current':  va = a.currentPrice || 0; vb = b.currentPrice || 0; break;
+          case 'daily':    va = a.dailyChangePercent || 0; vb = b.dailyChangePercent || 0; break;
+          case 'pl':
+            va = a.currentPrice ? (a.currentPrice - a.buyPrice) / a.buyPrice * 100 : 0;
+            vb = b.currentPrice ? (b.currentPrice - b.buyPrice) / b.buyPrice * 100 : 0;
+            break;
+          case 'value':
+            va = a.currency==='NIS' ? a.qty*(a.currentPrice||a.buyPrice) : a.qty*(a.currentPrice||0)*usdNis;
+            vb = b.currency==='NIS' ? b.qty*(b.currentPrice||b.buyPrice) : b.qty*(b.currentPrice||0)*usdNis;
+            break;
+          case 'category': va = a.comments || ''; vb = b.comments || ''; break;
+          default: return 0;
+        }
+        if (typeof va === 'string') return va.localeCompare(vb) * sortState.dir;
+        return (va - vb) * sortState.dir;
+      });
+    }
+
     function renderHoldingsTable() {
       const tbody = document.getElementById('holdings-body');
       tbody.innerHTML = '';
 
       const usdNis = portfolioState.marketData.usdNis || 3.0;
 
-      portfolioState.holdings.forEach(holding => {
+      sortedHoldings().forEach(holding => {
         const tr = document.createElement('tr');
 
         const currentPrice = holding.currentPrice || 0;
@@ -2346,7 +2399,7 @@
           </table>` : ''}`;
       } catch (e) {
         const el = document.getElementById('drill-analyst');
-        if (el) el.textContent = 'Failed to load analyst data.';
+        if (el) el.innerHTML = `<span style="color:var(--negative)">Could not load: ${e.message}</span>`;
         console.error('drill analyst:', e);
       }
     }
