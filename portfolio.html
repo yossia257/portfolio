@@ -1211,6 +1211,9 @@
           CONFIG.finnhubKey = key;
           alert('Configuration saved!');
         } else {
+    (function(){var d=document.getElementById('diag');if(d)d.textContent='LINES 1-108 OK';}
+    )();
+  </script><script>
           alert('Please enter a Finnhub API key');
         }
       });
@@ -1319,9 +1322,6 @@
           banner.classList.add('visible');
         }
         console.log('Using seed data (Google Sheet unavailable)');
-    (function(){var d=document.getElementById('diag');if(d)d.textContent='LINES 1-216 OK';}
-    )();
-  </script><script>
         renderHoldingsTable();
         await fetchPrices();
       }
