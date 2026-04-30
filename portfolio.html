@@ -1,0 +1,2836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yossi's Portfolio Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-page: #0f172a;
+      --bg-card: #1e293b;
+      --border-card: #334155;
+      --accent-blue: #38bdf8;
+      --accent-purple: #818cf8;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --positive: #4ade80;
+      --negative: #f87171;
+      --warning: #fbbf24;
+      --header-gradient: linear-gradient(135deg, #1e3a5f 0%, #3730a3 100%);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    header {
+      background: var(--header-gradient);
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-title h1 {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .header-stats {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .btn-refresh {
+      background-color: var(--accent-blue);
+      color: var(--bg-page);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+
+    .btn-refresh:hover {
+      background-color: #06b6d4;
+    }
+
+    .btn-refresh.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* Tab Navigation */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      background-color: rgba(0, 0, 0, 0.2);
+      padding: 8px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 80px;
+      padding: 10px 12px;
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: color 0.2s;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    /* Data Source Banner */
+    .data-source-banner {
+      display: none;
+      background: #92400e;
+      color: #fef3c7;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      border-bottom: 1px solid #b45309;
+    }
+    .data-source-banner.visible {
+      display: block;
+    }
+
+    /* Market Snapshot Bar */
+    .market-ticker {
+      background-color: var(--bg-card);
+      border-top: 1px solid var(--border-card);
+      border-bottom: 1px solid var(--border-card);
+      padding: 12px 20px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      gap: 24px;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .ticker-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: max-content;
+    }
+
+    .ticker-label {
+      color: var(--text-secondary);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .ticker-value {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .ticker-change {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .ticker-change.positive {
+      color: var(--positive);
+    }
+
+    .ticker-change.negative {
+      color: var(--negative);
+    }
+
+    /* Main Content */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    /* Holdings Table */
+    .table-wrapper {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 62vh;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 8px;
+      border: 1px solid var(--border-card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: var(--bg-card);
+    }
+
+    thead {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-bottom: 2px solid var(--border-card);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    th.sortable {
+      cursor: pointer;
+    }
+
+    th.sortable:hover {
+      color: var(--accent-blue);
+    }
+
+    th.sort-asc  { color: var(--accent-blue); }
+    th.sort-desc { color: var(--accent-blue); }
+    th.sort-asc  .sort-ind::after { content: ' ▲'; }
+    th.sort-desc .sort-ind::after { content: ' ▼'; }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-card);
+      font-size: 14px;
+    }
+
+    tbody tr {
+      border-left: 3px solid transparent;
+      transition: background-color 0.2s;
+    }
+
+    tbody tr:hover {
+      background-color: rgba(56, 189, 248, 0.05);
+    }
+
+    tbody tr.positive {
+      border-left-color: var(--positive);
+    }
+
+    tbody tr.negative {
+      border-left-color: var(--negative);
+    }
+
+    tbody tr.warning {
+      border-left-color: var(--warning);
+    }
+
+    tbody tr.manual-update {
+      border-left-style: dashed;
+    }
+
+    .ticker-cell {
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--accent-blue);
+    }
+
+    .ticker-cell:hover {
+      text-decoration: underline;
+    }
+
+    .value-positive {
+      color: var(--positive);
+    }
+
+    .value-negative {
+      color: var(--negative);
+    }
+
+    .btn-small {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 12px;
+      transition: color 0.2s;
+    }
+
+    .btn-small:hover {
+      color: var(--negative);
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .kpi-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Urgent Actions */
+    .alerts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .alert-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-left: 4px solid transparent;
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .alert-card:hover {
+      border-color: var(--accent-blue);
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.1);
+    }
+
+    .alert-card.buy {
+      border-left-color: var(--positive);
+    }
+
+    .alert-card.sell {
+      border-left-color: var(--negative);
+    }
+
+    .alert-card.watch {
+      border-left-color: var(--warning);
+    }
+
+    .alert-ticker {
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .alert-reason {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .alert-btn {
+      background-color: var(--accent-blue);
+      color: var(--bg-page);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* News Section */
+    .news-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .news-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .news-headline {
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .news-headline a {
+      color: var(--accent-blue);
+      text-decoration: none;
+    }
+
+    .news-headline a:hover {
+      text-decoration: underline;
+    }
+
+    .news-meta {
+      display: flex;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Tip Card */
+    .tip-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .tip-tags {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      background-color: rgba(56, 189, 248, 0.2);
+      color: var(--accent-blue);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .tip-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .tip-content {
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      color: var(--text-secondary);
+    }
+
+    .tip-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .tip-btn {
+      background-color: var(--accent-blue);
+      color: var(--bg-page);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .tip-btn:hover {
+      background-color: #06b6d4;
+    }
+
+    /* Drill-down Panel */
+    .drill-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      display: none;
+    }
+
+    .drill-overlay.active {
+      display: block;
+    }
+
+    .drill-panel {
+      position: fixed;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 420px;
+      background-color: var(--bg-card);
+      border-left: 1px solid var(--border-card);
+      overflow-y: auto;
+      z-index: 101;
+      transform: translateX(100%);
+      transition: transform 0.3s ease-out;
+    }
+
+    .drill-panel.active {
+      transform: translateX(0);
+    }
+
+    @keyframes slideIn {
+      to { transform: translateX(0); }
+    }
+
+    .drill-header {
+      padding: 20px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .drill-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .drill-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-close:hover {
+      color: var(--text-primary);
+    }
+
+    .drill-content {
+      padding: 20px;
+    }
+
+    .drill-section {
+      margin-bottom: 24px;
+    }
+
+    .drill-section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--accent-blue);
+      margin-bottom: 12px;
+    }
+
+    /* Claude Q&A Panel */
+    .claude-panel {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      color: var(--text-primary);
+      padding: 12px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      background-color: rgba(56, 189, 248, 0.05);
+    }
+
+    .claude-examples {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .example-chip {
+      background-color: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent-blue);
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .example-chip:hover {
+      background-color: rgba(56, 189, 248, 0.25);
+      border-color: var(--accent-blue);
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .drill-panel {
+        width: 100%;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+      }
+
+      main {
+        padding-bottom: 100px;
+      }
+
+      .tab-bar {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+      }
+
+      .tab-btn {
+        min-width: auto;
+        padding: 8px 6px;
+        font-size: 11px;
+        min-height: 50px;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      td, th {
+        padding: 8px;
+      }
+
+      .col-name,
+      .col-buyprice,
+      .col-analyst,
+      .col-category {
+        display: none;
+      }
+
+      .alerts-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .news-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header-top {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .header-title h1 {
+        font-size: 20px;
+      }
+
+      .btn-refresh {
+        width: 100%;
+      }
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(56, 189, 248, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent-blue);
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .btn-settings {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-secondary);
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      flex: none;
+      min-width: auto;
+    }
+
+    .btn-settings:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: var(--text-primary);
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <div class="header-title">
+        <h1>📊 Portfolio Dashboard</h1>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="header-stats">
+          <div id="last-refresh">Prices as of: —</div>
+        </div>
+        <button class="btn-refresh" id="btn-refresh-prices">Refresh Prices</button>
+        <button class="btn-settings" data-tab="settings" onclick="switchTab('settings')">⚙️</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="portfolio">💼 Portfolio</button>
+      <button class="tab-btn" data-tab="snapshot">📈 Market</button>
+      <button class="tab-btn" data-tab="signals">⚡ Signals</button>
+      <button class="tab-btn" data-tab="news">📰 News</button>
+      <button class="tab-btn" data-tab="learn">🎓 Learn</button>
+      <button class="tab-btn" data-tab="claude">🤖 Ask Claude</button>
+      <button class="tab-btn" data-tab="planning">📋 Planning</button>
+      <button class="tab-btn" data-tab="watchlist">👀 Watchlist</button>
+    </div>
+  </header>
+
+  <div class="data-source-banner" id="data-source-banner"></div>
+
+  <div class="market-ticker" id="market-ticker">
+    <div class="ticker-item">
+      <div class="ticker-label">USD/NIS</div>
+      <div class="ticker-value" id="ticker-usdnis">—</div>
+      <div class="ticker-change" id="ticker-usdnis-change">—</div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">BTC/USD</div>
+      <div class="ticker-value" id="ticker-btc">—</div>
+      <div class="ticker-change" id="ticker-btc-change">—</div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">PANW</div>
+      <div class="ticker-value" id="ticker-panw">—</div>
+      <div class="ticker-change" id="ticker-panw-change">—</div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">QQQ (NASDAQ)</div>
+      <div class="ticker-value" id="ticker-qqq">—</div>
+      <div class="ticker-change" id="ticker-qqq-change">—</div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">SPY (S&P)</div>
+      <div class="ticker-value" id="ticker-spy">—</div>
+      <div class="ticker-change" id="ticker-spy-change">—</div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">TA-125</div>
+      <div class="ticker-value" id="ticker-ta125">—</div>
+      <div class="ticker-change" id="ticker-ta125-change">— (manual)</div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Section 1: Portfolio -->
+    <section id="portfolio" class="section active">
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <h2 style="margin-bottom: 16px;">Holdings</h2>
+      <div class="table-wrapper">
+        <table id="holdings-table">
+          <thead>
+            <tr>
+              <th class="col-ticker sortable" data-sort="ticker" title="Sort by ticker">Ticker <span class="sort-ind"></span></th>
+              <th class="col-daily sortable" data-sort="daily" title="Sort by daily change">Daily % <span class="sort-ind"></span></th>
+              <th class="col-premarket sortable" data-sort="premarket" title="Sort by pre/post market">Ext Hrs % <span class="sort-ind"></span></th>
+              <th class="col-pl sortable" data-sort="pl" title="Sort by P&amp;L">P&amp;L % <span class="sort-ind"></span></th>
+              <th class="col-value sortable" data-sort="value" title="Sort by total value">Value (NIS) <span class="sort-ind"></span></th>
+              <th class="col-current sortable" data-sort="current" title="Sort by current price">Rate <span class="sort-ind"></span></th>
+              <th class="col-qty sortable" data-sort="qty" title="Sort by quantity">Qty <span class="sort-ind"></span></th>
+            </tr>
+          </thead>
+          <tbody id="holdings-body"></tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- Section 2: Market Snapshot -->
+    <section id="snapshot" class="section">
+      <h2>Market Snapshot</h2>
+      <div style="margin-top: 20px;">
+        <!-- Market KPIs row -->
+        <div class="kpi-grid" id="snapshot-kpi-grid" style="margin-bottom: 24px;"></div>
+
+        <!-- Two-column layout: allocation chart + currency exposure -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+          <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 20px;">
+            <div style="font-weight: 700; margin-bottom: 16px; color: var(--accent-blue);">Portfolio Allocation by Category</div>
+            <canvas id="allocation-chart" height="220"></canvas>
+          </div>
+          <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 20px;">
+            <div style="font-weight: 700; margin-bottom: 16px; color: var(--accent-blue);">USD vs NIS Exposure</div>
+            <canvas id="currency-chart" height="220"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Planning Tab -->
+    <section id="planning" class="section">
+      <h2>📋 Planning &amp; Income</h2>
+      <p style="margin-top: 4px; font-size: 13px; color: var(--text-secondary);">RSU vests, retention bonus estimates, and career transition timeline.</p>
+
+      <!-- Key Events timeline -->
+      <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 8px; padding: 20px; margin-top: 24px; margin-bottom: 24px;">
+        <div style="font-weight: 700; margin-bottom: 16px; color: var(--accent-blue);">Key Upcoming Events</div>
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(251,191,36,0.08); border-left: 3px solid var(--warning); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--warning);">31 Aug 2026</span>
+            <span>Retention bonus eligibility — $250K gross (~$125K net). Decide: stay or transition?</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(74,222,128,0.08); border-left: 3px solid var(--positive); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--positive);">15 Sep 2026</span>
+            <span>2,330 PANW RSUs vest — cost basis $107/share (Ch. 102). Plan sell vs. hold strategy.</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(248,113,113,0.08); border-left: 3px solid var(--negative); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--negative);">Sep–Dec 2026</span>
+            <span>Potential career transition window — prepare liquidity, review which positions to trim.</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(74,222,128,0.08); border-left: 3px solid var(--positive); border-radius: 4px;">
+            <span style="font-weight: 700; min-width: 90px; color: var(--positive);">15 May 2027</span>
+            <span>630 PANW RSUs vest — cost basis $180/share (Ch. 102).</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RSU & Bonus cards -->
+      <h3 style="margin-bottom: 16px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Income Estimates (live PANW price)</h3>
+      <div id="rsu-cards" style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));"></div>
+    </section>
+
+    <!-- Section 3: Urgent Signals -->
+    <section id="signals" class="section">
+      <h2>Urgent Call-to-Action Signals</h2>
+      <div id="alerts-container" style="margin-top: 20px;">
+        <div class="alerts-grid" id="alerts-grid"></div>
+      </div>
+    </section>
+
+    <!-- Section 4: News -->
+    <section id="news" class="section">
+      <h2>Market &amp; Portfolio News</h2>
+      <div style="margin-top: 16px; margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn-refresh" onclick="fetchNews('general')" style="font-size: 13px;">🌐 General Market</button>
+        <button class="btn-refresh" onclick="fetchNews('forex')" style="font-size: 13px;">💱 Forex</button>
+        <button class="btn-refresh" onclick="fetchNews('crypto')" style="font-size: 13px;">₿ Crypto</button>
+        <button class="btn-refresh" onclick="fetchNews('merger')" style="font-size: 13px;">🤝 M&amp;A</button>
+        <button class="btn-refresh" id="btn-portfolio-news" onclick="fetchPortfolioNews()" style="font-size: 13px; background: var(--accent-purple);">📊 My Holdings</button>
+      </div>
+      <div id="news-status" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;"></div>
+      <div id="news-container" style="margin-top: 8px;">
+        <div class="news-grid" id="news-grid"></div>
+      </div>
+    </section>
+
+    <!-- Section 5: Learn -->
+    <section id="learn" class="section">
+      <h2>Tip of the Day</h2>
+      <div id="tip-container" style="margin-top: 20px;">
+        <div class="tip-card" id="tip-card"></div>
+      </div>
+    </section>
+
+    <!-- Section 6: Ask Claude -->
+    <section id="claude" class="section">
+      <h2>🤖 Ask Claude</h2>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;margin-bottom:20px;">
+        Your live portfolio snapshot is bundled automatically. Type a question, prepare the prompt, then send it to Claude.
+      </p>
+      <div class="claude-panel">
+
+        <div class="form-group">
+          <label class="form-label">Your Question</label>
+          <textarea id="claude-question" placeholder="E.g., Should I rebalance? What are my biggest risks right now?"></textarea>
+        </div>
+
+        <div class="claude-examples" style="margin-bottom:16px;">
+          <div class="example-chip" onclick="setClaudeExample('What should I do with my worst performers?')">Worst performers</div>
+          <div class="example-chip" onclick="setClaudeExample('Flag my biggest concentration and leverage risks')">Concentration risks</div>
+          <div class="example-chip" onclick="setClaudeExample('Should I rebalance my portfolio? Give specific recommendations.')">Rebalance?</div>
+          <div class="example-chip" onclick="setClaudeExample('Explain the decay risk in TQQQ and SSO given current market conditions')">TQQQ/SSO decay</div>
+          <div class="example-chip" onclick="setClaudeExample('Given my upcoming RSU vests and retention bonus, what should I prioritise?')">RSU planning</div>
+          <div class="example-chip" onclick="setClaudeExample('Which positions should I trim before my career transition in Sep-Dec 2026?')">Pre-transition trim</div>
+        </div>
+
+        <button class="btn-refresh" id="btn-claude-prepare" style="width:100%;margin-bottom:20px;">
+          Prepare Prompt
+        </button>
+
+        <div id="claude-prompt-box" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label class="form-label" style="margin:0;">Your prompt — ready to send</label>
+            <span id="claude-copy-status" style="font-size:12px;color:var(--positive);display:none;">✓ Copied!</span>
+          </div>
+          <textarea id="claude-prompt-text" readonly
+            style="height:200px;font-size:11px;background:rgba(0,0,0,0.3);border:1px solid var(--border-card);
+                   color:var(--text-secondary);border-radius:6px;padding:10px;width:100%;resize:vertical;
+                   font-family:monospace;line-height:1.5;margin-bottom:12px;"></textarea>
+
+          <!-- Mobile: Share to Claude app (primary) -->
+          <button id="btn-claude-share"
+            style="display:none;width:100%;margin-bottom:10px;padding:13px;border-radius:8px;border:none;
+                   background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;
+                   font-weight:700;font-size:15px;cursor:pointer;">
+            Share to Claude App →
+          </button>
+
+          <!-- Desktop: Copy + Open in one action -->
+          <button id="btn-claude-open"
+            style="width:100%;margin-bottom:8px;padding:13px;border-radius:8px;border:none;
+                   background:var(--accent-blue);color:var(--bg-page);
+                   font-weight:700;font-size:15px;cursor:pointer;">
+            Copy &amp; Open Claude →
+          </button>
+
+          <div id="claude-paste-hint" style="display:none;text-align:center;font-size:13px;
+               color:var(--warning);padding:10px;background:rgba(251,191,36,0.08);
+               border-radius:6px;border:1px solid rgba(251,191,36,0.2);">
+            ✓ Copied! Claude is opening — press <strong>⌘V</strong> (Mac) or <strong>Ctrl+V</strong> (Windows) to paste
+          </div>
+
+          <button id="btn-claude-copy"
+            style="width:100%;margin-top:8px;padding:9px;border-radius:6px;border:1px solid var(--border-card);
+                   background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">
+            📋 Copy only (no open)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Watchlist Tab -->
+    <section id="watchlist" class="section">
+      <h2>👀 Watchlist</h2>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;margin-bottom:20px;">
+        Track tickers outside your portfolio. Stored in your Google Sheet — syncs across all devices.
+      </p>
+
+      <!-- Add ticker form -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <input id="wl-ticker" placeholder="Ticker (e.g. NVDA)" maxlength="12"
+          style="flex:1;min-width:100px;padding:10px;background:var(--bg-card);border:1px solid var(--border-card);
+                 color:var(--text-primary);border-radius:6px;font-size:14px;text-transform:uppercase;">
+        <input id="wl-note" placeholder="Note / rationale (optional)"
+          style="flex:3;min-width:180px;padding:10px;background:var(--bg-card);border:1px solid var(--border-card);
+                 color:var(--text-primary);border-radius:6px;font-size:14px;">
+        <button id="btn-wl-add" class="btn-refresh" style="padding:10px 20px;white-space:nowrap;">+ Add</button>
+      </div>
+      <div id="wl-status" style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;min-height:18px;"></div>
+
+      <!-- Watchlist table -->
+      <div class="table-wrapper" style="margin-bottom:32px;">
+        <table>
+          <thead><tr>
+            <th>Ticker</th>
+            <th>Current</th>
+            <th>Daily %</th>
+            <th>52-wk Position</th>
+            <th>Note</th>
+            <th>Added</th>
+            <th style="width:40px;"></th>
+          </tr></thead>
+          <tbody id="wl-body">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:20px;">
+              Loading watchlist…
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- AI Recommendations -->
+      <div style="background:var(--bg-card);border:1px solid var(--border-card);border-radius:8px;padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-weight:700;color:var(--accent-purple);">🤖 Daily Investment Ideas</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="wl-ai-ts" style="font-size:11px;color:var(--text-secondary);"></span>
+            <button id="btn-wl-ai-refresh" class="btn-refresh"
+              style="font-size:12px;padding:5px 12px;background:var(--accent-purple);">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="wl-ai-status" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;"></div>
+        <div id="wl-ai-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
+      </div>
+    </section>
+
+    <!-- Section 7: Settings -->
+    <section id="settings" class="section">
+      <h2>Settings</h2>
+      <div style="margin-top: 20px;">
+        <div class="kpi-card">
+          <div class="kpi-label">Finnhub API Key</div>
+          <input type="password" id="finnhub-key-input" placeholder="Enter your Finnhub API key" style="width: 100%; padding: 8px; margin-top: 8px; background-color: rgba(0,0,0,0.2); border: 1px solid var(--border-card); color: var(--text-primary); border-radius: 4px;">
+          <button class="btn-refresh" style="margin-top: 12px; width: 100%;" id="btn-save-config">Save Configuration</button>
+        </div>
+        <div class="kpi-card" style="margin-top: 16px;">
+          <div class="kpi-label">Watchlist Script URL</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;margin-bottom:8px;">
+            Google Apps Script web app URL — enables the 👀 Watchlist tab to sync across devices.
+          </div>
+          <input id="wl-url-input" type="text"
+            placeholder="https://script.google.com/macros/s/.../exec"
+            style="width:100%;padding:8px;background:rgba(0,0,0,0.2);border:1px solid var(--border-card);
+                   color:var(--text-primary);border-radius:4px;font-size:12px;">
+          <button class="btn-refresh" style="margin-top:10px;width:100%;" id="btn-save-wl-url">Save Watchlist URL</button>
+        </div>
+        <div class="kpi-card" style="margin-top: 16px;">
+          <div class="kpi-label">Data Source</div>
+          <div style="margin-top: 8px; font-size: 13px; line-height: 1.8;">
+            <strong>Google Sheet ID:</strong> 1iCbyReT-V2_FxTL06GdA_0VL5rWcJvZx3q9d3bWdXpU<br>
+            <strong>Range:</strong> Sheet1!B4:H33
+          </div>
+        </div>
+        <div class="kpi-card" style="margin-top: 16px;">
+          <div class="kpi-label">Israeli Stock Prices</div>
+          <div style="margin-top: 8px; font-size: 13px; color: var(--positive);">✓ Cloud proxy active — works from any device, anywhere.</div>
+          <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">via Cloudflare Worker · portfolio-proxy.yossia257.workers.dev</div>
+        </div>
+        <div class="kpi-card" style="margin-top: 16px;">
+          <button class="btn-refresh" style="width: 100%; background-color: var(--negative);" id="btn-clear-data">Clear All Local Data</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Drill-down Overlay & Panel -->
+  <div class="drill-overlay" id="drill-overlay" onclick="closeDrillDown(event)"></div>
+  <div class="drill-panel" id="drill-panel">
+    <div class="drill-header">
+      <div>
+        <div class="drill-title" id="drill-ticker">TICKER</div>
+        <div class="drill-subtitle" id="drill-company">Company Name</div>
+        <div class="drill-subtitle" id="drill-price" style="margin-top: 8px; font-size: 14px; font-weight: 700;"></div>
+      </div>
+      <button class="btn-close" id="btn-drill-close" onclick="document.getElementById('drill-overlay').classList.remove('active');document.getElementById('drill-panel').classList.remove('active');">×</button>
+    </div>
+    <div class="drill-content" id="drill-content"></div>
+  </div>
+
+  <script>
+    // ==================== CONFIG ====================
+    const CONFIG = {
+      finnhubKey: localStorage.getItem('finnhub_key') || 'd7msd89r01qngrvp921gd7msd89r01qngrvp9220',
+      fmpKey:        localStorage.getItem('fmp_key')        || 'QVxsOmoXts9EWyubaf4cCjul95N6ZrIX',
+      watchlistUrl: localStorage.getItem('watchlist_url') || 'https://script.google.com/macros/s/AKfycbymU5sDHR3jTO-h5hw78ybePpARRVsEtAkpfwt9ZgEmWe5sIDY2UZZ9_FK5U0MG71eK/exec',
+      googleSheetId: '1iCbyReT-V2_FxTL06GdA_0VL5rWcJvZx3q9d3bWdXpU',
+      googleSheetRange: 'Sheet1!B4:H33',
+      stalePriceThresholdMs: 60 * 60 * 1000,   // 1 hour
+      drillCacheTtlMs: 15 * 60 * 1000,         // 15 minutes
+      newsCacheTtlMs: 30 * 60 * 1000,          // 30 minutes
+    };
+
+    // ==================== STATE ====================
+    let portfolioState = {
+      holdings: [],
+      lastRefresh: null,
+      marketData: {},
+    };
+
+    // Seed data from CLAUDE.MD (27 holdings + 2 bonus additions)
+    const SEED_DATA = [
+      { ticker: 'AMZN', name: 'Amazon', qty: 80, buyPrice: 166.55, currency: 'USD' },
+      { ticker: 'TQQQ', name: 'ProShares UltraPro QQQ (3x)', qty: 380, buyPrice: 22.53, currency: 'USD' },
+      { ticker: 'QQQ', name: 'Invesco QQQ', qty: 27, buyPrice: 339.02, currency: 'USD' },
+      { ticker: 'GBTC', name: 'Grayscale Bitcoin Trust', qty: 250, buyPrice: 25.44, currency: 'USD' },
+      { ticker: 'SHLD', name: 'Global X Defense Tech ETF', qty: 168, buyPrice: 27.97, currency: 'USD' },
+      { ticker: 'MSFT', name: 'Microsoft', qty: 33, buyPrice: 339.89, currency: 'USD' },
+      { ticker: 'META', name: 'Meta Platforms', qty: 19, buyPrice: 217.05, currency: 'USD' },
+      { ticker: 'GOOGL', name: 'Alphabet (Class A)', qty: 40, buyPrice: 143.77, currency: 'USD' },
+      { ticker: 'MA', name: 'Mastercard', qty: 20, buyPrice: 315.28, currency: 'USD' },
+      { ticker: 'MRK', name: 'Merck', qty: 80, buyPrice: 67.65, currency: 'USD' },
+      { ticker: 'SLV', name: 'iShares Silver Trust', qty: 120, buyPrice: 63.22, currency: 'USD' },
+      { ticker: 'SSO', name: 'Ultra S&P500 ProShares (2x)', qty: 145, buyPrice: 47.63, currency: 'USD' },
+      { ticker: 'RSP', name: 'Invesco S&P 500 Equal Weight', qty: 40, buyPrice: 192.43, currency: 'USD' },
+      { ticker: 'LGVN', name: 'Longeveron Inc', qty: 6400, buyPrice: 1.21, currency: 'USD' },
+      { ticker: 'BABA', name: 'Alibaba Group', qty: 48, buyPrice: 156.79, currency: 'USD' },
+      { ticker: 'SOXX', name: 'iShares Semiconductor ETF', qty: 15, buyPrice: 342.54, currency: 'USD' },
+      { ticker: 'EPI', name: 'WisdomTree India Earnings', qty: 135, buyPrice: 43.19, currency: 'USD' },
+      { ticker: 'URA', name: 'Global X Uranium ETF', qty: 100, buyPrice: 50.65, currency: 'USD' },
+      { ticker: 'O', name: 'Realty Income Corp', qty: 74, buyPrice: 58.59, currency: 'USD' },
+      { ticker: 'VICI', name: 'VICI Properties', qty: 167, buyPrice: 24.84, currency: 'USD' },
+      { ticker: 'IBIT', name: 'iShares Bitcoin Trust ETF', qty: 100, buyPrice: 38.64, currency: 'USD' },
+      { ticker: 'PYPL', name: 'PayPal', qty: 80, buyPrice: 58.94, currency: 'USD' },
+      { ticker: 'CRM', name: 'Salesforce', qty: 20, buyPrice: 157.57, currency: 'USD' },
+      { ticker: 'DUOL', name: 'Duolingo', qty: 30, buyPrice: 197.45, currency: 'USD' },
+      { ticker: 'DRD', name: 'DRDGold Ltd', qty: 85, buyPrice: 28.93, currency: 'USD' },
+      { ticker: 'BONS', name: 'Bonus BioGroup', qty: 13000, buyPrice: 25.90, currency: 'NIS' },
+      { ticker: 'HAREL', name: 'Harel AND AAA', qty: 3570, buyPrice: 106.55, currency: 'USD' },
+    ];
+
+    // ==================== INITIALIZATION ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      initTabs();
+      initConfig();
+      loadPortfolioFromGoogleSheets();
+      renderKPIs();
+      renderRSUCards();
+      initSortHeaders();
+      setupEventListeners();
+      fetchMarketData();
+      renderTips();
+
+      // Auto-refresh every 2 minutes
+      setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchPrices();
+          fetchMarketData();
+        }
+      }, 2 * 60 * 1000);
+    });
+
+    // ==================== TAB NAVIGATION ====================
+    function initTabs() {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tabName = btn.dataset.tab;
+          switchTab(tabName);
+        });
+      });
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.section').forEach(section => { section.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('active'); });
+      document.getElementById(tabName)?.classList.add('active');
+      document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+      if (tabName === 'snapshot') renderSnapshot();
+      if (tabName === 'news') fetchNews('general');
+      if (tabName === 'planning') renderRSUCards();
+      if (tabName === 'watchlist') { loadWatchlist(); generateDailyRecommendations(); }
+    }
+
+    // ==================== CONFIG MANAGEMENT ====================
+    function initConfig() {
+      const savedKey = localStorage.getItem('finnhub_key');
+      if (savedKey) {
+        CONFIG.finnhubKey = savedKey;
+        document.getElementById('finnhub-key-input').value = savedKey;
+      }
+
+      document.getElementById('btn-save-config').addEventListener('click', () => {
+        const key = document.getElementById('finnhub-key-input').value;
+        if (key) {
+          localStorage.setItem('finnhub_key', key);
+          CONFIG.finnhubKey = key;
+          alert('Configuration saved!');
+        } else {
+          alert('Please enter a Finnhub API key');
+        }
+      });
+
+      const savedWlUrl = localStorage.getItem('watchlist_url');
+      if (savedWlUrl) { CONFIG.watchlistUrl = savedWlUrl; document.getElementById('wl-url-input').value = savedWlUrl; }
+
+      document.getElementById('btn-save-wl-url').addEventListener('click', () => {
+        const url = document.getElementById('wl-url-input').value.trim();
+        if (url) {
+          localStorage.setItem('watchlist_url', url);
+          CONFIG.watchlistUrl = url;
+          const btn = document.getElementById('btn-save-wl-url');
+          btn.textContent = '✓ Saved'; setTimeout(() => btn.textContent = 'Save Watchlist URL', 2000);
+        }
+      });
+
+      document.getElementById('btn-clear-data').addEventListener('click', () => {
+        if (confirm('Clear all local data? This cannot be undone.')) {
+          localStorage.clear();
+          alert('Data cleared. Please refresh the page.');
+        }
+      });
+    }
+
+    // ==================== GOOGLE SHEETS API ====================
+    // JSONP loader — works from file:// (script tags bypass the fetch CORS block)
+    function loadViaJSONP(sheetId, range) {
+      return new Promise((resolve, reject) => {
+        const cbName = '__gviz_cb_' + Date.now();
+        const rangeParam = encodeURIComponent(range.replace('Sheet1!', ''));
+        const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${cbName}&sheet=Sheet1&range=${rangeParam}`;
+
+        const timer = setTimeout(() => {
+          delete window[cbName];
+          script.remove();
+          reject(new Error('Timeout'));
+        }, 12000);
+
+        window[cbName] = (data) => {
+          clearTimeout(timer);
+          delete window[cbName];
+          script.remove();
+          resolve(data);
+        };
+
+        const script = document.createElement('script');
+        script.src = url;
+        script.onerror = () => {
+          clearTimeout(timer);
+          delete window[cbName];
+          reject(new Error('Script load failed'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function loadPortfolioFromGoogleSheets() {
+      const banner = document.getElementById('data-source-banner');
+      try {
+        const data = await loadViaJSONP(CONFIG.googleSheetId, CONFIG.googleSheetRange);
+
+        // gviz table: rows[].c[].v  (v = value, already typed)
+        const rows = data?.table?.rows || [];
+        if (rows.length === 0) throw new Error('Empty table returned');
+
+        portfolioState.holdings = [];
+        for (const row of rows) {
+          const c = row.c || [];
+          const name        = String(c[0]?.v ?? '').trim();
+          const stockNumber = String(c[1]?.v ?? '').trim();
+          let   ticker      = String(c[2]?.v ?? '').trim();
+          const qty         = Number(c[3]?.v) || 0;
+          const currRaw     = String(c[4]?.v ?? '$').trim();
+          const currency    = (currRaw === '₪') ? 'NIS' : (currRaw === '$') ? 'USD' : currRaw;
+          // Israeli stocks trade in Agorot (1/100 NIS) — convert to NIS on load
+          const buyPrice    = (Number(c[5]?.v) || 0) / (currency === 'NIS' ? 100 : 1);
+          const comments    = String(c[6]?.v ?? '').trim();
+
+          if (!ticker || ticker === 'Ticker') {
+            if (stockNumber) ticker = `IL-${stockNumber}`;
+            else continue;
+          }
+
+          portfolioState.holdings.push({
+            name, stockNumber, ticker, qty, currency, buyPrice, comments,
+            currentPrice: null, dailyChange: null, dailyChangePercent: null,
+            extPrice: null, extPct: null, extType: null,
+          });
+        }
+
+        if (portfolioState.holdings.length === 0) throw new Error('No valid rows parsed');
+
+        console.log(`Loaded ${portfolioState.holdings.length} holdings from Google Sheet`);
+        if (banner) { banner.classList.remove('visible'); banner.textContent = ''; }
+        renderHoldingsTable();
+        await fetchPrices();
+      } catch (error) {
+        console.error('Error loading from Google Sheet:', error.message);
+        portfolioState.holdings = SEED_DATA.map(h => ({
+          ...h,
+          currentPrice: null, dailyChange: null, dailyChangePercent: null,
+        }));
+        if (banner) {
+          banner.textContent = `⚠️ Google Sheet unavailable (${error.message}) — showing cached data from April 2026.`;
+          banner.classList.add('visible');
+        }
+        console.log('Using seed data (Google Sheet unavailable)');
+        renderHoldingsTable();
+        await fetchPrices();
+      }
+    }
+
+    // ==================== FETCH PRICES ====================
+    // Proxy is needed for Israeli stocks (Yahoo Finance has no CORS headers).
+    const YAHOO_PROXY   = 'https://portfolio-proxy.yossia257.workers.dev/proxy/yahoo/';
+    const CLAUDE_PROXY  = 'https://portfolio-proxy.yossia257.workers.dev/claude';
+
+    async function fetchPrices() {
+      if (!CONFIG.finnhubKey) return;
+
+      const btn = document.getElementById('btn-refresh-prices');
+      btn.classList.add('loading');
+      btn.textContent = 'Refreshing...';
+
+      let successCount = 0;
+      for (const holding of portfolioState.holdings) {
+        try {
+          if (holding.currency === 'USD') {
+            // Fetch USD stocks via Finnhub
+            const response = await fetch(
+              `https://finnhub.io/api/v1/quote?symbol=${holding.ticker}&token=${CONFIG.finnhubKey}`
+            );
+            const quote = await response.json();
+
+            if (quote.c !== undefined) {
+              holding.currentPrice = quote.c;
+              holding.dailyChange = quote.d;
+              holding.dailyChangePercent = quote.dp;
+              successCount++;
+            }
+          } else if (holding.currency === 'NIS') {
+            // Israeli stocks need a local proxy (Yahoo Finance has no CORS headers).
+            // Proxy converts dots to dashes: KSM.F77 → KSM-F77.TA
+            // YAHOO_PROXY always set (Cloudflare Worker)
+
+            // Synthetic IL-{number} tickers have no Yahoo equivalent — skip
+            if (holding.ticker.startsWith('IL-')) continue;
+
+            // Sheet tickers may already have .TA — strip it, convert dots→dashes, re-add .TA
+            // e.g. KSM.F77.TA → base=KSM.F77 → KSM-F77 → KSM-F77.TA
+            const base      = holding.ticker.replace(/\.TA$/i, '');
+            const tasTicker = base.replace(/\./g, '-') + '.TA';
+
+            const response = await fetch(`${YAHOO_PROXY}${tasTicker}`);
+            const data = await response.json();
+
+            if (data.chart?.result?.[0]) {
+              const result = data.chart.result[0];
+              const closes = result.indicators.quote[0].close;
+              const currentPrice = closes[closes.length - 1];
+
+              if (currentPrice) {
+                // Yahoo Finance returns Agorot (ILA) for .TA stocks — convert to NIS
+                holding.currentPrice = currentPrice / 100;
+                if (closes.length > 1) {
+                  const prevClose = closes.filter(Boolean).slice(-2)[0];
+                  if (prevClose) {
+                    holding.dailyChange = (currentPrice - prevClose) / 100;
+                    holding.dailyChangePercent = ((currentPrice - prevClose) / prevClose) * 100;
+                  }
+                }
+                successCount++;
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching ${holding.ticker}:`, error);
+        }
+
+        // Throttle: 100ms between requests to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      portfolioState.lastRefresh = new Date();
+      updateLastRefreshDisplay();
+      renderHoldingsTable();
+      renderKPIs();
+      renderAlerts();
+
+      btn.classList.remove('loading');
+      btn.textContent = `Refresh Prices (${successCount}/${portfolioState.holdings.length})`;
+
+      // Fetch extended hours in background — updates table when done
+      fetchExtendedPrices();
+    }
+
+    async function fetchExtendedPrices() {
+      const usdHoldings = portfolioState.holdings.filter(h => h.currency === 'USD' && !h.ticker.startsWith('IL-'));
+      for (const holding of usdHoldings) {
+        try {
+          const res  = await fetch(`${YAHOO_PROXY}${holding.ticker}?interval=2m&range=1d&includePrePost=true`);
+          const data = await res.json();
+          const r    = data.chart?.result?.[0];
+          if (!r) continue;
+          const meta     = r.meta || {};
+          const ts       = r.timestamp || [];
+          const closes   = r.indicators?.quote?.[0]?.close || [];
+          const tradePer = meta.currentTradingPeriod?.regular || {};
+          const regStart = tradePer.start || 0;
+          const regEnd   = tradePer.end   || 0;
+          const regClose = meta.regularMarketPrice;
+          const prevClose = meta.chartPreviousClose || meta.regularMarketPrice;
+
+          let extPrice = null, extType = null;
+          for (let i = ts.length - 1; i >= 0; i--) {
+            if (!closes[i]) continue;
+            const t = ts[i];
+            if (regEnd   && t > regEnd)   { extPrice = closes[i]; extType = 'After-hours'; break; }
+            if (regStart && t < regStart) { extPrice = closes[i]; extType = 'Pre-market';  break; }
+          }
+
+          if (extPrice) {
+            const base = extType === 'After-hours' ? (regClose || prevClose) : prevClose;
+            holding.extPrice = extPrice;
+            holding.extType  = extType;
+            holding.extPct   = base ? ((extPrice - base) / base * 100) : null;
+          } else {
+            holding.extPrice = null;
+            holding.extType  = null;
+            holding.extPct   = null;
+          }
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 150));
+      }
+      renderHoldingsTable();
+    }
+
+    function updateLastRefreshDisplay() {
+      if (portfolioState.lastRefresh) {
+        const time = portfolioState.lastRefresh.toLocaleTimeString();
+        document.getElementById('last-refresh').textContent = `Prices as of: ${time}`;
+      }
+    }
+
+    // ==================== MARKET DATA ====================
+    async function fetchMarketData() {
+      // Each source isolated — one failure never blocks the others
+
+      // ── USD/NIS (open.er-api.com — CORS-enabled, free, reliable) ──
+      try {
+        const r = await fetch('https://open.er-api.com/v6/latest/USD');
+        const d = await r.json();
+        if (d.rates?.ILS) portfolioState.marketData.usdNis = d.rates.ILS;
+      } catch (e) {
+        console.warn('USD/NIS fetch failed:', e.message);
+        if (!portfolioState.marketData.usdNis) portfolioState.marketData.usdNis = 3.0;
+      }
+
+      // ── BTC/USD (CoinGecko, no key) ──
+      try {
+        const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
+        const d = await r.json();
+        portfolioState.marketData.btcPrice  = d.bitcoin?.usd;
+        portfolioState.marketData.btcChange = d.bitcoin?.usd_24h_change;
+      } catch (e) {
+        console.warn('BTC fetch failed:', e.message);
+      }
+
+      // ── QQQ, SPY, PANW via Finnhub ──
+      if (CONFIG.finnhubKey) {
+        for (const ticker of ['QQQ', 'SPY', 'PANW']) {
+          try {
+            const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${CONFIG.finnhubKey}`);
+            const q = await r.json();
+            if (q.c !== undefined)
+              portfolioState.marketData[ticker] = { price: q.c, change: q.d, changePercent: q.dp };
+          } catch (e) {
+            console.warn(`${ticker} fetch failed:`, e.message);
+          }
+          await new Promise(r => setTimeout(r, 120));
+        }
+      }
+
+      renderMarketTicker();
+      renderRSUCards();
+    }
+
+    function renderMarketTicker() {
+      const usdNis = portfolioState.marketData.usdNis || 0;
+      document.getElementById('ticker-usdnis').textContent = usdNis.toFixed(2);
+
+      const btc = portfolioState.marketData.btcPrice;
+      if (btc) {
+        document.getElementById('ticker-btc').textContent = `$${btc.toFixed(0)}`;
+        const btcChange = portfolioState.marketData.btcChange || 0;
+        const btcChangeEl = document.getElementById('ticker-btc-change');
+        btcChangeEl.textContent = `${btcChange > 0 ? '▲' : '▼'} ${Math.abs(btcChange).toFixed(2)}%`;
+        btcChangeEl.className = `ticker-change ${btcChange > 0 ? 'positive' : 'negative'}`;
+      }
+
+      const qqq = portfolioState.marketData.QQQ;
+      if (qqq) {
+        document.getElementById('ticker-qqq').textContent = `$${qqq.price.toFixed(2)}`;
+        const qqqChangeEl = document.getElementById('ticker-qqq-change');
+        qqqChangeEl.textContent = `${qqq.changePercent > 0 ? '▲' : '▼'} ${Math.abs(qqq.changePercent).toFixed(2)}%`;
+        qqqChangeEl.className = `ticker-change ${qqq.changePercent > 0 ? 'positive' : 'negative'}`;
+      }
+
+      const spy = portfolioState.marketData.SPY;
+      if (spy) {
+        document.getElementById('ticker-spy').textContent = `$${spy.price.toFixed(2)}`;
+        const spyChangeEl = document.getElementById('ticker-spy-change');
+        spyChangeEl.textContent = `${spy.changePercent > 0 ? '▲' : '▼'} ${Math.abs(spy.changePercent).toFixed(2)}%`;
+        spyChangeEl.className = `ticker-change ${spy.changePercent > 0 ? 'positive' : 'negative'}`;
+      }
+
+      const panw = portfolioState.marketData.PANW;
+      if (panw) {
+        document.getElementById('ticker-panw').textContent = `$${panw.price.toFixed(2)}`;
+        const panwChangeEl = document.getElementById('ticker-panw-change');
+        panwChangeEl.textContent = `${panw.changePercent > 0 ? '▲' : '▼'} ${Math.abs(panw.changePercent).toFixed(2)}%`;
+        panwChangeEl.className = `ticker-change ${panw.changePercent > 0 ? 'positive' : 'negative'}`;
+      }
+    }
+
+    // ==================== RENDER HOLDINGS TABLE ====================
+    let sortState = { col: null, dir: 1 };  // dir: 1=asc, -1=desc
+
+    function initSortHeaders() {
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.sort;
+          if (sortState.col === col) sortState.dir *= -1;
+          else { sortState.col = col; sortState.dir = 1; }
+          document.querySelectorAll('th').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+          th.classList.add(sortState.dir === 1 ? 'sort-asc' : 'sort-desc');
+          renderHoldingsTable();
+        });
+      });
+    }
+
+    function sortedHoldings() {
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+      const h = [...portfolioState.holdings];
+      if (!sortState.col) return h;
+      return h.sort((a, b) => {
+        let va, vb;
+        switch (sortState.col) {
+          case 'ticker':   va = a.ticker;    vb = b.ticker;    break;
+          case 'name':     va = a.name;      vb = b.name;      break;
+          case 'qty':      va = a.qty;       vb = b.qty;       break;
+          case 'current':  va = a.currentPrice || 0; vb = b.currentPrice || 0; break;
+          case 'daily':    va = a.dailyChangePercent || 0; vb = b.dailyChangePercent || 0; break;
+          case 'pl':
+            va = a.currentPrice ? (a.currentPrice - a.buyPrice) / a.buyPrice * 100 : 0;
+            vb = b.currentPrice ? (b.currentPrice - b.buyPrice) / b.buyPrice * 100 : 0;
+            break;
+          case 'value':
+            va = a.currency==='NIS' ? a.qty*(a.currentPrice||a.buyPrice) : a.qty*(a.currentPrice||0)*usdNis;
+            vb = b.currency==='NIS' ? b.qty*(b.currentPrice||b.buyPrice) : b.qty*(b.currentPrice||0)*usdNis;
+            break;
+          case 'premarket': va = a.extPct ?? -999; vb = b.extPct ?? -999; break;
+          case 'category': va = a.comments || ''; vb = b.comments || ''; break;
+          default: return 0;
+        }
+        if (typeof va === 'string') return va.localeCompare(vb) * sortState.dir;
+        return (va - vb) * sortState.dir;
+      });
+    }
+
+    function renderHoldingsTable() {
+      const tbody = document.getElementById('holdings-body');
+      tbody.innerHTML = '';
+
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+
+      sortedHoldings().forEach(holding => {
+        const tr = document.createElement('tr');
+
+        const currentPrice = holding.currentPrice || 0;
+        const totalValue = holding.currency === 'NIS'
+          ? holding.qty * (currentPrice || holding.buyPrice)
+          : holding.qty * currentPrice * usdNis;
+
+        const pl = holding.currency === 'NIS'
+          ? ((currentPrice - holding.buyPrice) / holding.buyPrice) * 100
+          : ((currentPrice - holding.buyPrice) / holding.buyPrice) * 100;
+
+        const dailyPercent = holding.dailyChangePercent || 0;
+
+        // Determine row class
+        let rowClass = '';
+        if (pl > 10) rowClass = 'positive';
+        else if (pl < -10) rowClass = 'negative';
+        else if (pl < -5) rowClass = 'warning';
+
+        if (holding.currency === 'NIS') {
+          tr.classList.add('manual-update');
+        }
+
+        tr.className = rowClass;
+
+        const dailyClass = dailyPercent > 0 ? 'value-positive' : dailyPercent < 0 ? 'value-negative' : '';
+        const dailyStr   = dailyPercent !== 0 ? (dailyPercent > 0 ? '▲' : '▼') + Math.abs(dailyPercent).toFixed(2) + '%' : '—';
+        const plClass    = pl > 0 ? 'value-positive' : pl < 0 ? 'value-negative' : '';
+        const plStr      = pl !== 0 ? (pl > 0 ? '+' : '') + pl.toFixed(1) + '%' : '—';
+        const rateStr    = currentPrice ? (holding.currency === 'NIS' ? `₪${currentPrice.toFixed(2)}` : `$${currentPrice.toFixed(2)}`) : '—';
+
+        const extPct   = holding.extPct;
+        const extClass = extPct != null ? (extPct > 0 ? 'value-positive' : 'value-negative') : '';
+        const extStr   = extPct != null
+          ? `${extPct > 0 ? '▲' : '▼'}${Math.abs(extPct).toFixed(2)}%`
+          : '—';
+
+        tr.innerHTML = `
+          <td class="col-ticker"><span class="ticker-cell" onclick="openDrillDown('${holding.ticker}')">${holding.ticker}</span></td>
+          <td class="col-daily ${dailyClass}">${dailyStr}</td>
+          <td class="col-premarket ${extClass}" title="${holding.extType || ''}">${extStr}</td>
+          <td class="col-pl ${plClass}">${plStr}</td>
+          <td class="col-value">₪${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+          <td class="col-current">${rateStr}</td>
+          <td class="col-qty">${holding.qty.toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ==================== KPI CARDS ====================
+    function renderKPIs() {
+      const container = document.getElementById('kpi-grid');
+      container.innerHTML = '';
+
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+
+      let totalNis = 0;
+      let portfolioValue = 0;
+      let bestPerformer = null;
+      let worstPerformer = null;
+
+      portfolioState.holdings.forEach(holding => {
+        if (holding.currency === 'USD' && holding.currentPrice) {
+          const value = holding.qty * holding.currentPrice * usdNis;
+          portfolioValue += value;
+          totalNis += value;
+
+          const pl = ((holding.currentPrice - holding.buyPrice) / holding.buyPrice) * 100;
+          if (!bestPerformer || pl > bestPerformer.pl) {
+            bestPerformer = { ticker: holding.ticker, pl };
+          }
+          if (!worstPerformer || pl < worstPerformer.pl) {
+            worstPerformer = { ticker: holding.ticker, pl };
+          }
+        } else if (holding.currency === 'NIS') {
+          const value = holding.qty * (holding.currentPrice || holding.buyPrice);
+          totalNis += value;
+        }
+      });
+
+      container.innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-label">Total Value (NIS)</div>
+          <div class="kpi-value">₪${totalNis.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+          <div class="kpi-subtitle">≈ $${(totalNis / usdNis).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Best Performer</div>
+          <div class="kpi-value" style="color: var(--positive);">${bestPerformer ? bestPerformer.ticker : '—'}</div>
+          <div class="kpi-subtitle">${bestPerformer ? '+' + bestPerformer.pl.toFixed(1) + '%' : '—'}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Worst Performer</div>
+          <div class="kpi-value" style="color: var(--negative);">${worstPerformer ? worstPerformer.ticker : '—'}</div>
+          <div class="kpi-subtitle">${worstPerformer ? worstPerformer.pl.toFixed(1) + '%' : '—'}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Holdings Count</div>
+          <div class="kpi-value">${portfolioState.holdings.length}</div>
+          <div class="kpi-subtitle">stocks & ETFs</div>
+        </div>
+      `;
+    }
+
+    // ==================== ALERTS / SIGNALS ====================
+    function renderAlerts() {
+      const container = document.getElementById('alerts-grid');
+      container.innerHTML = '';
+
+      const alerts = [];
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+
+      const thesisFlags = {
+        BABA: { reason: 'Geopolitical / regulatory risk — China', type: 'watch' },
+        LGVN: { reason: 'Speculative biotech, small cap — set exit threshold', type: 'watch' },
+      };
+
+      portfolioState.holdings.forEach(holding => {
+        if (!holding.currentPrice && holding.currency === 'USD') return;
+
+        const pl = holding.currency === 'USD'
+          ? ((holding.currentPrice - holding.buyPrice) / holding.buyPrice) * 100
+          : ((holding.currentPrice - holding.buyPrice) / holding.buyPrice) * 100;
+
+        const dailyPercent = holding.dailyChangePercent || 0;
+
+        // Check thesis flags first
+        if (thesisFlags[holding.ticker]) {
+          alerts.push({
+            ticker: holding.ticker,
+            reason: thesisFlags[holding.ticker].reason,
+            type: thesisFlags[holding.ticker].type,
+          });
+        } else if (pl < -15) {
+          alerts.push({
+            ticker: holding.ticker,
+            reason: `Down ${pl.toFixed(1)}% — Review stop-loss`,
+            type: 'sell',
+          });
+        } else if (pl > 150) {
+          alerts.push({
+            ticker: holding.ticker,
+            reason: `Up ${pl.toFixed(1)}% — Consider profits`,
+            type: 'buy',
+          });
+        } else if (dailyPercent < -5) {
+          alerts.push({
+            ticker: holding.ticker,
+            reason: `Daily drop ${Math.abs(dailyPercent).toFixed(2)}% — Alert`,
+            type: 'watch',
+          });
+        } else if (dailyPercent > 5) {
+          alerts.push({
+            ticker: holding.ticker,
+            reason: `Daily jump ${dailyPercent.toFixed(2)}% — Momentum`,
+            type: 'buy',
+          });
+        }
+      });
+
+      if (alerts.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 40px;">No urgent signals at this time.</div>';
+        return;
+      }
+
+      alerts.forEach(alert => {
+        const card = document.createElement('div');
+        card.className = `alert-card ${alert.type}`;
+        card.innerHTML = `
+          <div class="alert-ticker">${alert.ticker}</div>
+          <div class="alert-reason">${alert.reason}</div>
+          <button class="alert-btn" onclick="openDrillDown('${alert.ticker}')">View Details</button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ==================== DRILL-DOWN PANEL ====================
+    function openDrillDown(ticker) {
+      const holding = portfolioState.holdings.find(h => h.ticker === ticker);
+      if (!holding) return;
+
+      document.getElementById('drill-ticker').textContent = ticker;
+      document.getElementById('drill-company').textContent = holding.name;
+
+      const priceText = holding.currentPrice
+        ? `$${holding.currentPrice.toFixed(2)}`
+        : '—';
+
+      const changeText = holding.dailyChangePercent
+        ? `${holding.dailyChangePercent > 0 ? '▲' : '▼'} ${Math.abs(holding.dailyChangePercent).toFixed(2)}%`
+        : '—';
+
+      document.getElementById('drill-price').textContent = `${priceText} ${changeText}`;
+
+      const content = document.getElementById('drill-content');
+      content.innerHTML = `
+        <div class="drill-section">
+          <div class="drill-section-title">Basic Info</div>
+          <div style="display: grid; gap: 8px; font-size: 13px;">
+            <div><strong>Quantity:</strong> ${holding.qty.toLocaleString()}</div>
+            <div><strong>Buy Price:</strong> ${holding.currency === 'USD' ? '$' : '₪'}${holding.buyPrice.toFixed(2)}</div>
+            <div><strong>Currency:</strong> ${holding.currency}</div>
+            <div><strong>Comments:</strong> ${holding.comments || '—'}</div>
+          </div>
+        </div>
+
+        <div class="drill-section" id="drill-extended-section">
+          <div class="drill-section-title">Extended Hours</div>
+          <div id="drill-extended" style="font-size: 13px;"></div>
+        </div>
+
+        <div class="drill-section">
+          <div class="drill-section-title">Technical</div>
+          <div id="drill-technical" style="font-size: 13px; color: var(--text-secondary);">Loading…</div>
+        </div>
+
+        <div class="drill-section">
+          <div class="drill-section-title">Analyst Sentiment</div>
+          <div id="drill-analyst" style="font-size: 13px; color: var(--text-secondary);">Loading…</div>
+        </div>
+
+        <div class="drill-section">
+          <div class="drill-section-title">Recent News</div>
+          <div id="drill-news" style="font-size: 13px; color: var(--text-secondary);">Loading news…</div>
+        </div>
+      `;
+
+      document.getElementById('drill-overlay').classList.add('active');
+      document.getElementById('drill-panel').classList.add('active');
+
+      if (holding.currency === 'USD') {
+        fetchDrillDownTechnical(ticker);
+        fetchDrillDownAnalyst(ticker);
+        fetchDrillDownNews(ticker);
+      } else {
+        const msgs = { 'drill-technical': 'Technical data not available for Israeli holdings.',
+                       'drill-analyst':   'Analyst ratings not available for Israeli holdings.',
+                       'drill-news':      'News not available for local Israeli holdings.' };
+        for (const [id, msg] of Object.entries(msgs)) {
+          const el = document.getElementById(id); if (el) el.textContent = msg;
+        }
+      }
+    }
+
+    function closeDrillDown(event) {
+      if (event && event.target !== document.getElementById('drill-overlay')) return;
+      document.getElementById('drill-overlay').classList.remove('active');
+      document.getElementById('drill-panel').classList.remove('active');
+    }
+
+    // ==================== TIPS ====================
+    const TIPS = [
+      { title: 'Understanding Leverage Decay', tags: ['Leverage', 'ETF'], content: 'TQQQ (3x Nasdaq) and SSO (2x S&P) amplify gains AND losses. In sideways markets, daily rebalancing causes decay. These are tactical, not long-term holds. Monitor quarterly and rebalance if portfolio drift exceeds 10%.' },
+      { title: 'Israel Tax: Chapter 102 RSUs', tags: ['Tax', 'RSU'], content: 'When PANW RSUs vest, they are taxed under Chapter 102 rules: 25% ordinary income tax on vesting date at grant-day FMV. Capital gains apply on the difference between exercise price and sale price. Track dual basis for cost reporting.' },
+      { title: 'Portfolio Concentration Risk', tags: ['Risk', 'Strategy'], content: 'Your top 5 holdings represent ~37% of portfolio value. A 20% drop in tech would cost you ~7.4% total. Consider trimming winners above 10% allocation or using collar strategies on concentrated positions.' },
+      { title: 'USD/NIS Hedge Basics', tags: ['Currency', 'Strategy'], content: 'Your portfolio is 95% USD-denominated while expenses are in NIS. A 5% shekel weakness = 5% tailwind on USD returns. Monitor BOI rate decisions and consider small FX hedges if NIS strengthens 3%+.' },
+      { title: 'RSI Overbought/Oversold', tags: ['Technical'], content: 'RSI (Relative Strength Index) > 70 = overbought, < 30 = oversold. Not a sell/buy signal alone — confirm with price action and trend. Use on intraday charts (4H/daily) for better reliability than weekly.' },
+      { title: 'Moving Average Crossovers', tags: ['Technical'], content: 'When 20-day MA crosses above 50-day = bullish signal. Below = bearish. Lag: 5-10 days typically. Best used with volume confirmation. Alone, they miss 30-40% of moves. Always confirm with fundamentals.' },
+      { title: 'Crypto ETF Mechanics: IBIT vs GBTC', tags: ['Crypto'], content: 'IBIT (iShares Bitcoin Trust) is spot bitcoin, lower fee. GBTC (Grayscale) is a trust, higher fee but known. Both go to zero only if Bitcoin = $0. Use for core long-term; day-trade neither due to tracking spread variance.' },
+      { title: 'Rebalancing: When & How', tags: ['Strategy', 'Portfolio'], content: 'Rebalance when an allocation drifts 5%+ outside target. Use new contributions (Kupat Gemel monthly $6K) to rebalance, avoiding tax events. Quarterly review is typical for your portfolio size.' },
+      { title: 'Covered Calls on Concentrated Holdings', tags: ['Options', 'Strategy'], content: 'Own 80x AMZN? Sell 0.2–0.5 delta monthly calls to generate 0.3–0.8% theta. Accept assignment if exercised; OK for tech. Weeklies roll faster but miss longer trends. Start 5-10% OTM.' },
+      { title: 'Risk of a 50% Tech Drawdown', tags: ['Risk', 'Scenario'], content: 'You hold ~37% mega-cap tech. If tech corrects 50%, your portfolio drops ~18.5%. USD/NIS shekel weakness adds another 3–5%. Scenario: -21% loss. Plan for this—consider keeping 10–15% dry powder.' },
+    ];
+
+    function renderTips() {
+      const tipIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % TIPS.length;
+      const tip = TIPS[tipIndex];
+
+      const card = document.getElementById('tip-card');
+      card.innerHTML = `
+        <div class="tip-tags">
+          ${tip.tags.map(tag => `<div class="tag">${tag}</div>`).join('')}
+        </div>
+        <div class="tip-title">${tip.title}</div>
+        <div class="tip-content">${tip.content}</div>
+        <div class="tip-actions">
+          <button class="tip-btn" onclick="previousTip()">← Previous</button>
+          <button class="tip-btn" onclick="nextTip()">Next →</button>
+          <button class="tip-btn" onclick="bookmarkTip()">Bookmark</button>
+        </div>
+      `;
+    }
+
+    let currentTipIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % TIPS.length;
+
+    function previousTip() {
+      currentTipIndex = (currentTipIndex - 1 + TIPS.length) % TIPS.length;
+      const tip = TIPS[currentTipIndex];
+      const card = document.getElementById('tip-card');
+      card.innerHTML = `
+        <div class="tip-tags">
+          ${tip.tags.map(tag => `<div class="tag">${tag}</div>`).join('')}
+        </div>
+        <div class="tip-title">${tip.title}</div>
+        <div class="tip-content">${tip.content}</div>
+        <div class="tip-actions">
+          <button class="tip-btn" onclick="previousTip()">← Previous</button>
+          <button class="tip-btn" onclick="nextTip()">Next →</button>
+          <button class="tip-btn" onclick="bookmarkTip()">Bookmark</button>
+        </div>
+      `;
+    }
+
+    function nextTip() {
+      currentTipIndex = (currentTipIndex + 1) % TIPS.length;
+      const tip = TIPS[currentTipIndex];
+      const card = document.getElementById('tip-card');
+      card.innerHTML = `
+        <div class="tip-tags">
+          ${tip.tags.map(tag => `<div class="tag">${tag}</div>`).join('')}
+        </div>
+        <div class="tip-title">${tip.title}</div>
+        <div class="tip-content">${tip.content}</div>
+        <div class="tip-actions">
+          <button class="tip-btn" onclick="previousTip()">← Previous</button>
+          <button class="tip-btn" onclick="nextTip()">Next →</button>
+          <button class="tip-btn" onclick="bookmarkTip()">Bookmark</button>
+        </div>
+      `;
+    }
+
+    function bookmarkTip() {
+      alert('Bookmark feature coming soon!');
+    }
+
+    // ==================== CLAUDE Q&A ====================
+    function setClaudeExample(question) {
+      document.getElementById('claude-question').value = question;
+      document.getElementById('claude-question').focus();
+    }
+
+    function buildClaudePrompt(question) {
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+      const panw   = portfolioState.marketData.PANW?.price;
+      let ctx = '# Portfolio Context\n\n## Holdings\n\n';
+      ctx += '| Ticker | Currency | Qty | Buy Price | Current | P&L% | Value (NIS) |\n';
+      ctx += '|---|---|---|---|---|---|---|\n';
+      let totalNis = 0;
+      portfolioState.holdings.forEach(h => {
+        const curr   = h.currency === 'NIS' ? '₪' : '$';
+        const curFmt = h.currentPrice ? `${curr}${h.currentPrice.toFixed(2)}` : '—';
+        const pl     = h.currentPrice ? ((h.currentPrice - h.buyPrice) / h.buyPrice * 100) : null;
+        const plFmt  = pl != null ? `${pl >= 0 ? '+' : ''}${pl.toFixed(1)}%` : '—';
+        const valNis = h.currency === 'NIS'
+          ? h.qty * (h.currentPrice || h.buyPrice)
+          : h.currentPrice ? h.qty * h.currentPrice * usdNis : 0;
+        totalNis += valNis;
+        ctx += `| ${h.ticker} | ${h.currency} | ${h.qty.toLocaleString()} | ${curr}${h.buyPrice.toFixed(2)} | ${curFmt} | ${plFmt} | ₪${Math.round(valNis).toLocaleString()} |\n`;
+      });
+      ctx += `\n## Key Numbers\n`;
+      ctx += `- Total portfolio: ₪${Math.round(totalNis).toLocaleString()} (~$${Math.round(totalNis/usdNis).toLocaleString()})\n`;
+      ctx += `- USD/NIS: ${usdNis.toFixed(3)}\n`;
+      if (panw) ctx += `- PANW price: $${panw.toFixed(2)}\n`;
+      ctx += `\n## Upcoming Events\n`;
+      ctx += `- 31 Aug 2026: Retention bonus ($250K gross / ~$125K net after 50% tax)\n`;
+      ctx += `- 15 Sep 2026: 2,330 PANW RSUs vest (Ch.102 basis $107/share)\n`;
+      ctx += `- Sep–Dec 2026: Career transition window\n`;
+      ctx += `- 15 May 2027: 630 PANW RSUs vest (Ch.102 basis $180/share)\n`;
+      ctx += `\n## Context\n`;
+      ctx += `- Israeli investor, ~95% USD-denominated portfolio\n`;
+      ctx += `- Israeli capital gains tax applies; Chapter 102 for RSUs\n`;
+      ctx += `\n---\n\n**Question:** ${question}`;
+      return ctx;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const prepareBtn = document.getElementById('btn-claude-prepare');
+      const copyBtn    = document.getElementById('btn-claude-copy');
+      const openBtn    = document.getElementById('btn-claude-open');
+      const shareBtn   = document.getElementById('btn-claude-share');
+      const promptBox  = document.getElementById('claude-prompt-box');
+      const promptText = document.getElementById('claude-prompt-text');
+      const copyStatus = document.getElementById('claude-copy-status');
+
+      // Show Share button on mobile (Web Share API pre-fills text in Claude app)
+      if (navigator.share) {
+        shareBtn.style.display = 'block';
+        openBtn.style.display = 'none';   // Share is the primary action on mobile
+      }
+
+      prepareBtn.addEventListener('click', () => {
+        const question = document.getElementById('claude-question').value.trim();
+        if (!question) {
+          document.getElementById('claude-question').style.outline = '2px solid var(--negative)';
+          setTimeout(() => document.getElementById('claude-question').style.outline = '', 1500);
+          return;
+        }
+        promptText.value = buildClaudePrompt(question);
+        promptBox.style.display = 'block';
+        setTimeout(() => promptText.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+      });
+
+      async function doCopy() {
+        promptText.select();
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(promptText.value);
+        } else {
+          document.execCommand('copy');
+        }
+        copyStatus.style.display = 'inline';
+        setTimeout(() => copyStatus.style.display = 'none', 2500);
+      }
+
+      // "Copy & Open Claude" — open window first (must be synchronous for Safari)
+      openBtn.addEventListener('click', async () => {
+        const w = window.open('https://claude.ai/new', '_blank');  // sync: Safari allows
+        await doCopy();
+        const hint = document.getElementById('claude-paste-hint');
+        hint.style.display = 'block';
+        if (!w) {
+          // Popup blocked — tell user to allow popups
+          hint.textContent = '✓ Copied! Popup was blocked — allow popups and try again, or paste at claude.ai';
+        }
+        setTimeout(() => hint.style.display = 'none', 9000);
+      });
+
+      // "Copy only" — just copies, no open
+      copyBtn.addEventListener('click', async () => {
+        await doCopy();
+        copyBtn.textContent = '✓ Copied';
+        setTimeout(() => copyBtn.textContent = '📋 Copy only (no open)', 2500);
+      });
+
+      // Share to Claude app (mobile) — pre-fills text in the app
+      shareBtn.addEventListener('click', async () => {
+        try {
+          await navigator.share({ text: promptText.value });
+        } catch (e) {
+          if (e.name !== 'AbortError') { await doCopy(); }
+        }
+      });
+    });
+
+    // ==================== WATCHLIST ====================
+    let watchlistState = { items: [] };
+    const WL_SCRIPT = () => CONFIG.watchlistUrl;
+
+    function callWatchlist(params) {
+      return new Promise((resolve, reject) => {
+        if (!WL_SCRIPT()) { reject(new Error('No watchlist URL — add it in Settings')); return; }
+        const cbName = '__wl_' + Date.now();
+        const url    = WL_SCRIPT() + '?' + new URLSearchParams({ ...params, callback: cbName }).toString();
+        const script = document.createElement('script');
+        const timer  = setTimeout(() => { delete window[cbName]; script.remove(); reject(new Error('Timeout')); }, 12000);
+        window[cbName] = (data) => { clearTimeout(timer); delete window[cbName]; script.remove(); resolve(data); };
+        script.onerror = () => { clearTimeout(timer); delete window[cbName]; reject(new Error('Script load failed')); };
+        script.src = url;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function loadWatchlist() {
+      const status = document.getElementById('wl-status');
+      const tbody  = document.getElementById('wl-body');
+      if (!WL_SCRIPT()) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--warning);padding:20px;">Add your Watchlist Script URL in ⚙️ Settings first.</td></tr>';
+        return;
+      }
+      status.textContent = 'Loading…';
+      try {
+        const data = await callWatchlist({ action: 'list' });
+        watchlistState.items = Array.isArray(data) ? data : [];
+        status.textContent = '';
+        renderWatchlistTable();
+        fetchWatchlistPrices();
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--negative)">Failed to load: ${e.message}</span>`;
+        tbody.innerHTML  = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:16px;">Could not reach watchlist script.</td></tr>';
+      }
+    }
+
+    function renderWatchlistTable() {
+      const tbody = document.getElementById('wl-body');
+      if (watchlistState.items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:20px;">No tickers yet — add one above.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = watchlistState.items.map(item => {
+        const p      = item._price || {};
+        const price  = p.current != null ? `$${p.current.toFixed(2)}` : '—';
+        const dPct   = p.dailyPct != null ? p.dailyPct : null;
+        const dStr   = dPct != null ? `${dPct >= 0 ? '▲' : '▼'}${Math.abs(dPct).toFixed(2)}%` : '—';
+        const dCls   = dPct != null ? (dPct >= 0 ? 'value-positive' : 'value-negative') : '';
+        const wk52   = p.pct52 != null ? `${p.pct52}% of range` : '—';
+        return `<tr>
+          <td style="font-weight:700;color:var(--accent-blue);cursor:pointer;" onclick="openDrillDown('${item.ticker}')">${item.ticker}</td>
+          <td>${price}</td>
+          <td class="${dCls}">${dStr}</td>
+          <td>${wk52}</td>
+          <td style="color:var(--text-secondary);font-size:12px;">${item.note || '—'}</td>
+          <td style="color:var(--text-secondary);font-size:12px;">${item.added || ''}</td>
+          <td><button class="btn-small" onclick="removeWatchlistTicker('${item.ticker}')">✕</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function fetchWatchlistPrices() {
+      if (!CONFIG.finnhubKey) return;
+      for (const item of watchlistState.items) {
+        try {
+          const [qRes, mRes] = await Promise.all([
+            fetch(`https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${CONFIG.finnhubKey}`),
+            fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${item.ticker}&metric=all&token=${CONFIG.finnhubKey}`),
+          ]);
+          const q  = await qRes.json();
+          const mt = (await mRes.json()).metric || {};
+          const h52 = mt['52WeekHigh'], l52 = mt['52WeekLow'];
+          item._price = {
+            current:  q.c,
+            dailyPct: q.dp,
+            pct52:    (h52 && l52 && q.c) ? Math.round(((q.c - l52) / (h52 - l52)) * 100) : null,
+          };
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 150));
+      }
+      renderWatchlistTable();
+    }
+
+    async function addWatchlistTicker() {
+      const tickerInput = document.getElementById('wl-ticker');
+      const noteInput   = document.getElementById('wl-note');
+      const status      = document.getElementById('wl-status');
+      const ticker      = tickerInput.value.trim().toUpperCase();
+      if (!ticker) { tickerInput.style.outline = '2px solid var(--negative)'; setTimeout(() => tickerInput.style.outline = '', 1500); return; }
+      const btn = document.getElementById('btn-wl-add');
+      btn.textContent = 'Adding…'; btn.disabled = true;
+      status.textContent = '';
+      try {
+        await callWatchlist({ action: 'add', ticker, note: noteInput.value.trim() });
+        tickerInput.value = ''; noteInput.value = '';
+        status.innerHTML = `<span style="color:var(--positive)">✓ ${ticker} added to watchlist</span>`;
+        await loadWatchlist();
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--negative)">Failed: ${e.message}</span>`;
+      } finally { btn.textContent = '+ Add'; btn.disabled = false; }
+    }
+
+    async function removeWatchlistTicker(ticker) {
+      if (!confirm(`Remove ${ticker} from watchlist?`)) return;
+      const status = document.getElementById('wl-status');
+      try {
+        await callWatchlist({ action: 'remove', ticker });
+        status.innerHTML = `<span style="color:var(--text-secondary)">${ticker} removed</span>`;
+        await loadWatchlist();
+      } catch (e) {
+        status.innerHTML = `<span style="color:var(--negative)">Failed: ${e.message}</span>`;
+      }
+    }
+
+    // ── Daily AI recommendations ──────────────────────────────────────────────
+    function buildAIPrompt() {
+      const portfolio = portfolioState.holdings.map(h => h.ticker).join(', ');
+      const watchlist = watchlistState.items.map(i => i.ticker).join(', ') || 'none';
+      return `You are a financial analyst. Suggest 3-5 diversified investment ideas for an Israeli investor.
+
+Current portfolio: ${portfolio}
+Current watchlist: ${watchlist}
+Portfolio value: ~$190K USD, growth-oriented, comfortable with leverage & crypto.
+
+Requirements:
+- Diversified across different industries, geographies, and instrument types (stocks, ETFs, crypto, commodities)
+- Attractive valuation or technical setup (not overextended)
+- Clear catalyst or rationale for NOW
+- Good analyst sentiment / market momentum
+- Different from positions already held
+
+Respond ONLY with a valid JSON array, no other text, no markdown:
+[
+  {
+    "ticker": "TICKER",
+    "name": "Full Name",
+    "type": "Stock|ETF|Crypto|Commodity",
+    "sector": "Technology|Healthcare|...",
+    "why": "2-3 sentence rationale for now",
+    "risk": "Key risk in one sentence",
+    "sizing": "Suggested % of portfolio"
+  }
+]`;
+    }
+
+    async function generateDailyRecommendations(force = false) {
+      const today   = new Date().toDateString();
+      const tsEl    = document.getElementById('wl-ai-ts');
+      const statusEl = document.getElementById('wl-ai-status');
+      const cardsEl = document.getElementById('wl-ai-cards');
+
+      // Check cache
+      if (!force) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('daily_recs') || '{}');
+          if (cached.date === today && Array.isArray(cached.items) && cached.items.length) {
+            if (tsEl) tsEl.textContent = `Generated today at ${cached.time}`;
+            renderAICards(cached.items);
+            return;
+          }
+        } catch (_) {}
+      }
+
+      if (statusEl) statusEl.textContent = '🤖 Generating today's ideas…';
+      if (cardsEl)  cardsEl.innerHTML = '';
+      if (tsEl)     tsEl.textContent  = '';
+
+      try {
+        const resp = await fetch(CLAUDE_PROXY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1200,
+            messages: [{ role: 'user', content: buildAIPrompt() }]
+          })
+        });
+
+        const data  = await resp.json();
+        const text  = data.content?.[0]?.text || '';
+        const items = JSON.parse(text.trim());
+
+        const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        localStorage.setItem('daily_recs', JSON.stringify({ date: today, time, items }));
+
+        if (statusEl) statusEl.textContent = '';
+        if (tsEl)     tsEl.textContent = `Generated today at ${time}`;
+        renderAICards(items);
+      } catch (e) {
+        if (statusEl) statusEl.innerHTML = `<span style="color:var(--negative)">Could not generate: ${e.message}</span>`;
+      }
+    }
+
+    function renderAICards(items) {
+      const cardsEl = document.getElementById('wl-ai-cards');
+      if (!cardsEl || !items?.length) return;
+
+      const TYPE_COLOR = { Stock: 'var(--accent-blue)', ETF: 'var(--positive)', Crypto: 'var(--warning)', Commodity: '#a78bfa' };
+
+      cardsEl.innerHTML = items.map(item => {
+        const col    = TYPE_COLOR[item.type] || 'var(--text-secondary)';
+        const inWl   = watchlistState.items.some(w => w.ticker === item.ticker);
+        const inPort = portfolioState.holdings.some(h => h.ticker === item.ticker);
+        const badge  = inPort ? '<span style="font-size:10px;background:rgba(56,189,248,0.15);color:var(--accent-blue);padding:2px 6px;border-radius:3px;margin-left:6px;">In portfolio</span>'
+                     : inWl  ? '<span style="font-size:10px;background:rgba(74,222,128,0.15);color:var(--positive);padding:2px 6px;border-radius:3px;margin-left:6px;">In watchlist</span>'
+                     : '';
+        return `<div style="background:rgba(0,0,0,0.2);border:1px solid var(--border-card);border-left:3px solid ${col};border-radius:8px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div>
+              <span style="font-size:15px;font-weight:800;color:${col};">${item.ticker}</span>
+              ${badge}
+              <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">${item.name}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+              <span style="font-size:11px;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:10px;color:${col};">${item.type}</span>
+              ${(!inWl && !inPort) ? `<button onclick="addFromAI('${item.ticker}','${(item.why||'').replace(/'/g,"\'")}',this)"
+                style="font-size:11px;padding:4px 10px;border-radius:4px;border:none;background:var(--accent-blue);color:#0f172a;font-weight:700;cursor:pointer;">
+                + Watchlist</button>` : ''}
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-primary);margin-bottom:6px;">${item.why}</div>
+          <div style="font-size:11px;color:var(--negative);">⚠ ${item.risk}</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Suggested sizing: ${item.sizing}</div>
+        </div>`;
+      }).join('');
+    }
+
+    async function addFromAI(ticker, note, btn) {
+      btn.textContent = '…'; btn.disabled = true;
+      try {
+        await callWatchlist({ action: 'add', ticker, note });
+        watchlistState.items.push({ ticker, note, added: new Date().toLocaleDateString() });
+        renderAICards(JSON.parse(localStorage.getItem('daily_recs') || '{}').items || []);
+        renderWatchlistTable();
+        document.getElementById('wl-status').innerHTML = `<span style="color:var(--positive)">✓ ${ticker} added to watchlist</span>`;
+        setTimeout(() => { const el = document.getElementById('wl-status'); if (el) el.textContent = ''; }, 3000);
+      } catch (e) {
+        btn.textContent = '+ Watchlist'; btn.disabled = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btn-wl-add').addEventListener('click', addWatchlistTicker);
+      document.getElementById('wl-ticker').addEventListener('keydown', e => { if (e.key === 'Enter') addWatchlistTicker(); });
+      document.getElementById('btn-wl-ai-refresh').addEventListener('click', () => generateDailyRecommendations(true));
+    });
+
+    // ==================== RSU & INCOME EVENTS ====================
+    function renderRSUCards() {
+      const container = document.getElementById('rsu-cards');
+      if (!container) return;
+
+      const panwPrice = portfolioState.marketData.PANW?.price || null;
+      const usdNis    = portfolioState.marketData.usdNis || 3.0;
+
+      const rsu1Qty   = 2330, rsu1Basis = 107, rsu1Date = '15 Sep 2026';
+      const rsu2Qty   = 630,  rsu2Basis = 180, rsu2Date = '15 May 2027';
+      const retDate   = '31 Aug 2026';
+
+      // Tax model (Ch. 102 Israel):
+      //   Gain portion (price > basis): 50% income tax → keep 50% of gain + full basis value at vest
+      //   Underwater / basis portion (price ≤ basis): 30% capital gains → keep 70% of vest value
+      function calcRsuNet(qty, price, basis) {
+        if (price == null) return null;
+        // Ch. 102 Israel:
+        //   Basis portion (qty × basis):         ordinary income → 50% tax → keep 50%
+        //   Gain portion  (qty × (price-basis)): capital gains   → 30% tax → keep 70%
+        //   Underwater (price < basis):           full vest = ordinary income → 50% tax
+        if (price >= basis) {
+          const basisVal = basis * qty;
+          const gain     = (price - basis) * qty;
+          return basisVal * 0.5 + gain * 0.7;
+        } else {
+          return price * qty * 0.5;
+        }
+      }
+
+      const gross1   = panwPrice ? rsu1Qty * panwPrice : null;
+      const gain1    = panwPrice ? Math.max(0, panwPrice - rsu1Basis) * rsu1Qty : null;
+      const net1Usd  = calcRsuNet(rsu1Qty, panwPrice, rsu1Basis);
+      const net1Nis  = net1Usd != null ? net1Usd * usdNis : null;
+
+      const gross2   = panwPrice ? rsu2Qty * panwPrice : null;
+      const gain2    = panwPrice ? Math.max(0, panwPrice - rsu2Basis) * rsu2Qty : null;
+      const net2Usd  = calcRsuNet(rsu2Qty, panwPrice, rsu2Basis);
+      const net2Nis  = net2Usd != null ? net2Usd * usdNis : null;
+
+      // Retention bonus: 50% tax on taxable portion, 30% on non-taxable
+      const retGross    = 250000;
+      const retTaxable  = 250000;      // entire bonus is ordinary income
+      const retNetUsd   = retTaxable * 0.5;
+      const retNetNis   = retNetUsd * usdNis;
+
+      const fmt  = (v, prefix='$') => v != null ? `${prefix}${Math.round(v).toLocaleString()}` : '—';
+      const fmtD = (v, prefix='$') => v != null ? `${prefix}${v.toFixed(2)}` : '—';
+
+      const daysUntil = (month, day, year=2026) => {
+        const d = new Date(year, month-1, day);
+        return Math.max(0, Math.round((d - new Date()) / 86400000));
+      };
+
+      const panwStatus = panwPrice
+        ? (panwPrice >= rsu1Basis ? `▲ $${panwPrice.toFixed(2)} — above $${rsu1Basis} basis` : `▼ $${panwPrice.toFixed(2)} — below $${rsu1Basis} basis`)
+        : '— (refresh prices)';
+      const panwStatus2 = panwPrice
+        ? (panwPrice >= rsu2Basis ? `▲ $${panwPrice.toFixed(2)} — above $${rsu2Basis} basis` : `▼ $${panwPrice.toFixed(2)} — below $${rsu2Basis} basis`)
+        : '— (refresh prices)';
+
+      const cards = [
+        // ── Retention Bonus ──
+        {
+          color: 'var(--warning)', icon: '💰',
+          title: 'Retention Bonus',
+          date: retDate, days: daysUntil(8, 31),
+          rows: [
+            ['Gross', fmt(retGross)],
+            ['Tax ~50%', fmt(retGross * 0.5)],
+            ['Net (USD)', fmt(retNetUsd)],
+            ['Net (NIS)', fmt(retNetNis, '₪')],
+          ],
+          note: 'Requires staying through 31 Aug 2026. Full amount is ordinary income.',
+        },
+        // ── RSU Vest 1 ──
+        {
+          color: panwPrice >= rsu1Basis ? 'var(--positive)' : 'var(--warning)',
+          icon: '📈',
+          title: `RSU Vest 1 — ${rsu1Qty.toLocaleString()} PANW shares`,
+          date: rsu1Date, days: daysUntil(9, 15),
+          rows: [
+            ['PANW price', panwStatus],
+            ['Ch. 102 basis', `$${rsu1Basis}/share`],
+            ['Gross value', fmt(gross1)],
+            ['Taxable (basis, 50% tax)', fmt(rsu1Qty * rsu1Basis)],
+            ['Gain above basis (30% tax)', gain1 != null ? fmt(gain1) : '—'],
+            ['─────────────', '─────────'],
+            ['Est. net (USD)', fmt(net1Usd)],
+            ['Est. net (NIS)', fmt(net1Nis, '₪')],
+          ],
+          note: panwPrice != null && panwPrice < rsu1Basis
+            ? `Price below basis → 30% cap-gains on full vest value`
+            : `Gain above $${rsu1Basis} taxed at 50%. Basis portion untaxed at vest.`,
+        },
+        // ── RSU Vest 2 ──
+        {
+          color: panwPrice != null && panwPrice >= rsu2Basis ? 'var(--positive)' : 'var(--accent-blue)',
+          icon: '📈',
+          title: `RSU Vest 2 — ${rsu2Qty.toLocaleString()} PANW shares`,
+          date: rsu2Date, days: null,
+          rows: [
+            ['PANW price', panwStatus2],
+            ['Ch. 102 basis', `$${rsu2Basis}/share`],
+            ['Gross value', fmt(gross2)],
+            ['Taxable (basis, 50% tax)', fmt(rsu2Qty * rsu2Basis)],
+            ['Gain above basis (30% tax)', gain2 != null ? fmt(gain2) : '—'],
+            ['─────────────', '─────────'],
+            ['Est. net (USD)', fmt(net2Usd)],
+            ['Est. net (NIS)', fmt(net2Nis, '₪')],
+          ],
+          note: panwPrice != null && panwPrice < rsu2Basis
+            ? `Price below $${rsu2Basis} basis → 30% cap-gains on full vest value. Career transition timing matters.`
+            : `Gain above $${rsu2Basis} taxed at 50%. Plan around Sep–Dec 2026 transition.`,
+        },
+      ];
+
+      container.innerHTML = cards.map(card => `
+        <div style="background:var(--bg-card);border:1px solid var(--border-card);border-left:4px solid ${card.color};border-radius:8px;padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:${card.color};">${card.icon} ${card.title}</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${card.date}</div>
+            </div>
+            ${card.days != null ? `<div style="background:rgba(0,0,0,0.2);padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;color:${card.color};">${card.days}d</div>` : ''}
+          </div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;">
+            ${card.rows.map(([k,v]) => k.startsWith('─')
+              ? `<tr><td colspan="2" style="border-top:1px solid var(--border-card);padding:4px 0;"></td></tr>`
+              : `<tr><td style="color:var(--text-secondary);padding:3px 0;">${k}</td><td style="text-align:right;font-weight:600;padding:3px 0;">${v}</td></tr>`
+            ).join('')}
+          </table>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);border-top:1px solid var(--border-card);padding-top:8px;">${card.note}</div>
+        </div>`).join('');
+    }
+
+    // ==================== MARKET SNAPSHOT ====================
+    let allocationChartInstance = null;
+    let currencyChartInstance = null;
+
+    function renderSnapshot() {
+      const usdNis = portfolioState.marketData.usdNis || 3.0;
+
+      // ── KPI grid ──
+      const grid = document.getElementById('snapshot-kpi-grid');
+      if (grid) {
+        const btc = portfolioState.marketData.btcPrice;
+        const qqq = portfolioState.marketData.QQQ;
+        const spy = portfolioState.marketData.SPY;
+        const panw = portfolioState.marketData.PANW;
+
+        const kpis = [
+          { label: 'USD / NIS', value: usdNis ? usdNis.toFixed(3) : '—', sub: 'Live rate', color: '' },
+          { label: 'BTC / USD', value: btc ? `$${btc.toLocaleString()}` : '—', sub: portfolioState.marketData.btcChange ? `${portfolioState.marketData.btcChange > 0 ? '▲' : '▼'} ${Math.abs(portfolioState.marketData.btcChange).toFixed(2)}% 24h` : '', color: portfolioState.marketData.btcChange > 0 ? 'var(--positive)' : 'var(--negative)' },
+          { label: 'NASDAQ (QQQ)', value: qqq ? `$${qqq.price.toFixed(2)}` : '—', sub: qqq ? `${qqq.changePercent > 0 ? '▲' : '▼'} ${Math.abs(qqq.changePercent).toFixed(2)}%` : '', color: qqq && qqq.changePercent > 0 ? 'var(--positive)' : 'var(--negative)' },
+          { label: 'S&P 500 (SPY)', value: spy ? `$${spy.price.toFixed(2)}` : '—', sub: spy ? `${spy.changePercent > 0 ? '▲' : '▼'} ${Math.abs(spy.changePercent).toFixed(2)}%` : '', color: spy && spy.changePercent > 0 ? 'var(--positive)' : 'var(--negative)' },
+          { label: 'PANW (RSUs)', value: panw ? `$${panw.price.toFixed(2)}` : '—', sub: panw ? `${panw.changePercent > 0 ? '▲' : '▼'} ${Math.abs(panw.changePercent).toFixed(2)}%` : '', color: panw && panw.changePercent > 0 ? 'var(--positive)' : 'var(--negative)' },
+        ];
+
+        grid.innerHTML = kpis.map(k => `
+          <div class="kpi-card">
+            <div class="kpi-label">${k.label}</div>
+            <div class="kpi-value">${k.value}</div>
+            <div class="kpi-subtitle" style="color:${k.color || 'var(--text-secondary)'}">${k.sub}</div>
+          </div>`).join('');
+      }
+
+      // ── Allocation pie chart ──
+      const catMap = {};
+      portfolioState.holdings.forEach(h => {
+        const val = h.currency === 'USD' && h.currentPrice
+          ? h.qty * h.currentPrice * usdNis
+          : h.currency === 'NIS' ? h.qty * (h.currentPrice || h.buyPrice) : 0;
+        const cat = h.comments || (h.currency === 'NIS' ? 'Israeli' : 'Other');
+        catMap[cat] = (catMap[cat] || 0) + val;
+      });
+      const catLabels = Object.keys(catMap);
+      const catValues = Object.values(catMap);
+      const COLORS = ['#38bdf8','#818cf8','#4ade80','#f87171','#fbbf24','#a78bfa','#34d399','#fb923c','#60a5fa','#f472b6','#94a3b8'];
+
+      const allocCtx = document.getElementById('allocation-chart');
+      if (allocCtx) {
+        if (allocationChartInstance) allocationChartInstance.destroy();
+        allocationChartInstance = new Chart(allocCtx, {
+          type: 'doughnut',
+          data: { labels: catLabels, datasets: [{ data: catValues, backgroundColor: COLORS, borderWidth: 0 }] },
+          options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } } }, cutout: '60%' }
+        });
+      }
+
+      // ── Currency chart ──
+      let totalUsd = 0, totalNis = 0;
+      portfolioState.holdings.forEach(h => {
+        if (h.currency === 'USD' && h.currentPrice) totalUsd += h.qty * h.currentPrice * usdNis;
+        else if (h.currency === 'NIS') totalNis += h.qty * (h.currentPrice || h.buyPrice);
+      });
+      const currCtx = document.getElementById('currency-chart');
+      if (currCtx) {
+        if (currencyChartInstance) currencyChartInstance.destroy();
+        currencyChartInstance = new Chart(currCtx, {
+          type: 'doughnut',
+          data: { labels: ['USD-denominated (NIS value)', 'NIS-denominated'], datasets: [{ data: [totalUsd, totalNis], backgroundColor: ['#38bdf8','#f59e0b'], borderWidth: 0 }] },
+          options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } } }, cutout: '60%' }
+        });
+      }
+    }
+
+    // ==================== NEWS ====================
+    async function fetchNews(category = 'general') {
+      if (!CONFIG.finnhubKey) {
+        document.getElementById('news-status').textContent = 'Set your Finnhub API key in Settings to load news.';
+        return;
+      }
+      const status = document.getElementById('news-status');
+      const grid = document.getElementById('news-grid');
+      status.textContent = 'Loading news…';
+      grid.innerHTML = '';
+      try {
+        const res = await fetch(`https://finnhub.io/api/v1/news?category=${category}&minId=0&token=${CONFIG.finnhubKey}`);
+        const articles = await res.json();
+        renderNewsCards(articles.slice(0, 18), grid);
+        status.textContent = `${articles.length} articles — ${category} news`;
+      } catch (e) {
+        status.textContent = 'Failed to load news. Check your API key.';
+      }
+    }
+
+    async function fetchPortfolioNews() {
+      if (!CONFIG.finnhubKey) {
+        document.getElementById('news-status').textContent = 'Set your Finnhub API key in Settings to load news.';
+        return;
+      }
+      const status = document.getElementById('news-status');
+      const grid = document.getElementById('news-grid');
+      status.textContent = 'Loading news for your holdings…';
+      grid.innerHTML = '';
+
+      const usdTickers = portfolioState.holdings.filter(h => h.currency === 'USD').map(h => h.ticker);
+      const toDate = new Date().toISOString().split('T')[0];
+      const fromDate = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+
+      const allArticles = [];
+      for (const ticker of usdTickers.slice(0, 8)) {
+        try {
+          const res = await fetch(`https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${fromDate}&to=${toDate}&token=${CONFIG.finnhubKey}`);
+          const articles = await res.json();
+          articles.slice(0, 3).forEach(a => { a._ticker = ticker; allArticles.push(a); });
+          await new Promise(r => setTimeout(r, 120));
+        } catch (_) {}
+      }
+
+      allArticles.sort((a, b) => b.datetime - a.datetime);
+      renderNewsCards(allArticles.slice(0, 24), grid);
+      status.textContent = `${allArticles.length} articles across your holdings (last 7 days)`;
+    }
+
+    function renderNewsCards(articles, container) {
+      if (!articles || articles.length === 0) {
+        container.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:40px;">No articles found.</div>';
+        return;
+      }
+      container.innerHTML = articles.map(a => {
+        const dt = a.datetime ? new Date(a.datetime * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        const tickerBadge = a._ticker ? `<span style="background:var(--accent-blue);color:#0f172a;border-radius:3px;padding:1px 6px;font-size:11px;font-weight:700;">${a._ticker}</span>` : '';
+        return `<div class="news-card">
+          <div class="news-headline"><a href="${a.url}" target="_blank">${a.headline}</a></div>
+          <div class="news-meta">${tickerBadge}<span>${a.source || ''}</span><span>${dt}</span></div>
+          ${a.summary ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${a.summary.slice(0, 140)}…</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    async function fetchDrillDownTechnical(ticker) {
+      const el = document.getElementById('drill-technical');
+      if (!el || !CONFIG.finnhubKey) return;
+      el.innerHTML = '<span style="color:var(--text-secondary)">Loading…</span>';
+      try {
+        const [quoteRes, metricRes, candleRes] = await Promise.all([
+          fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${CONFIG.finnhubKey}`),
+          fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${CONFIG.finnhubKey}`),
+          fetch(`${YAHOO_PROXY}${ticker}?interval=1d&range=3mo`),
+        ]);
+        const q  = await quoteRes.json();
+        const m  = await metricRes.json();
+        const cd = await candleRes.json();
+        const mt = m.metric || {};
+
+        const fmt = (v, prefix='$', dec=2) => v != null && !isNaN(v) ? `${prefix}${Number(v).toFixed(dec)}` : '—';
+
+        const current = q.c;
+        const high52  = mt['52WeekHigh'];
+        const low52   = mt['52WeekLow'];
+        const pct52   = (high52 && low52 && current)
+          ? Math.round(((current - low52) / (high52 - low52)) * 100) : null;
+        const beta   = mt.beta;
+        const pe     = mt.peBasicExclExtraTTM || mt.peTTM;
+        const eps    = mt.epsBasicExclExtraItemsTTM || mt.epsTTM;
+        const mktCap = mt.marketCapitalization;
+
+        // ── RSI(14) + SMA20/50 from Yahoo candles ──
+        const rawCloses = cd.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+        const closes = rawCloses.filter(Boolean);
+
+        let rsi = null, sma20 = null, sma50 = null;
+        if (closes.length >= 15) {
+          const deltas = closes.slice(-15).map((v,i,a) => i === 0 ? 0 : v - a[i-1]).slice(1);
+          const gains  = deltas.map(d => d > 0 ? d : 0);
+          const losses = deltas.map(d => d < 0 ? -d : 0);
+          const avgG   = gains.reduce((a,b) => a+b, 0) / 14;
+          const avgL   = losses.reduce((a,b) => a+b, 0) / 14;
+          rsi = avgL === 0 ? 100 : Math.round(100 - 100 / (1 + avgG / avgL));
+        }
+        if (closes.length >= 20) sma20 = closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+        if (closes.length >= 50) sma50 = closes.slice(-50).reduce((a,b)=>a+b,0)/50;
+
+        const rsiColor = rsi == null ? 'var(--text-secondary)' : rsi > 70 ? 'var(--negative)' : rsi < 30 ? 'var(--positive)' : 'var(--warning)';
+        const rsiLabel = rsi == null ? '—' : `${rsi} — ${rsi > 70 ? '⚠ Overbought' : rsi < 30 ? '✓ Oversold' : 'Neutral'}`;
+
+        const maRow = (label, ma) => {
+          if (!current || !ma) return `<tr><td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">${label}</td><td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">—</td></tr>`;
+          const pct = ((current - ma) / ma * 100);
+          const col = pct >= 0 ? 'var(--positive)' : 'var(--negative)';
+          return `<tr><td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">${label}</td><td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">$${ma.toFixed(2)} <span style="color:${col}">(${pct>=0?'+':''}${pct.toFixed(1)}%)</span></td></tr>`;
+        };
+
+        const barPct   = pct52 != null ? pct52 : 0;
+        const barColor = barPct > 75 ? 'var(--negative)' : barPct < 25 ? 'var(--positive)' : 'var(--warning)';
+        const dSign    = (q.d||0) >= 0 ? '+' : '';
+        const dColor   = (q.d||0) >= 0 ? 'var(--positive)' : 'var(--negative)';
+
+        el.innerHTML = `
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:10px;">
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Price</td>
+              <td style="text-align:right;font-weight:700;padding:4px 0;border-bottom:1px solid var(--border-card);">
+                ${fmt(current)}${q.d != null ? ` <span style="color:${dColor}">${dSign}${q.d?.toFixed(2)} (${dSign}${q.dp?.toFixed(2)}%)</span>` : ''}
+              </td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Day range</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${(q.l&&q.h)?`${fmt(q.l)} – ${fmt(q.h)}`:'—'}</td>
+            </tr>
+            
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">52-wk range</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(low52)} – ${fmt(high52)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding:6px 0;border-bottom:1px solid var(--border-card);">
+                <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);">
+                  <span>Low</span>
+                  <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:4px;height:6px;position:relative;">
+                    <div style="position:absolute;left:0;top:0;height:100%;width:${barPct}%;background:${barColor};border-radius:4px;"></div>
+                  </div>
+                  <span>High</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">RSI (14)</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);color:${rsiColor};">${rsiLabel}</td>
+            </tr>
+            ${maRow('SMA 20d', sma20)}
+            ${maRow('SMA 50d', sma50)}
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">Beta</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(beta,'',2)}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">P/E (TTM)</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(pe,'',1)}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;border-bottom:1px solid var(--border-card);">EPS (TTM)</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;border-bottom:1px solid var(--border-card);">${fmt(eps)}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-secondary);padding:4px 0;">Mkt Cap</td>
+              <td style="text-align:right;font-weight:600;padding:4px 0;">${mktCap?'$'+(mktCap/1000).toFixed(1)+'B':'—'}</td>
+            </tr>
+          </table>`;
+
+        // Extended hours — fetch 2m intraday with pre/post included
+        fetchExtendedHours(ticker, q.pc || q.c, q.c);
+      } catch (e) {
+        el.textContent = 'Failed to load: ' + e.message;
+        console.error('drill technical:', e);
+      }
+    }
+
+    async function fetchExtendedHours(ticker, prevClose, regClose) {
+      const extEl = document.getElementById('drill-extended');
+      if (!extEl) return;
+      extEl.innerHTML = '<span style="color:var(--text-secondary);font-size:12px;">Loading…</span>';
+      try {
+        const res  = await fetch(`${YAHOO_PROXY}${ticker}?interval=2m&range=1d&includePrePost=true`);
+        const data = await res.json();
+        const result = data.chart?.result?.[0];
+        if (!result) { extEl.textContent = 'N/A'; return; }
+
+        const meta      = result.meta || {};
+        const ts        = result.timestamp || [];
+        const closes    = result.indicators?.quote?.[0]?.close || [];
+        const tradePer  = meta.currentTradingPeriod?.regular || {};
+        const regStart  = tradePer.start || 0;
+        const regEnd    = tradePer.end   || 0;
+
+        // Find last non-null price outside regular market hours
+        let extPrice = null, extType = null, extTs = null;
+        for (let i = ts.length - 1; i >= 0; i--) {
+          if (!closes[i]) continue;
+          const t = ts[i];
+          if (regEnd && t > regEnd) { extPrice = closes[i]; extType = 'After-hours'; extTs = t; break; }
+          if (regStart && t < regStart) { extPrice = closes[i]; extType = 'Pre-market'; extTs = t; break; }
+        }
+
+        const fmt2 = (p, base) => {
+          if (!p) return '—';
+          const chg = base ? ((p - base) / base * 100) : 0;
+          const col = chg >= 0 ? 'var(--positive)' : 'var(--negative)';
+          const t = extTs ? new Date(extTs*1000).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) : '';
+          return `<strong>$${p.toFixed(2)}</strong> <span style="color:${col}">(${chg>=0?'+':''}${chg.toFixed(2)}%)</span> <span style="color:var(--text-secondary);font-size:11px;">${t} ET</span>`;
+        };
+
+        const base = extType === 'After-hours' ? (regClose || prevClose) : prevClose;
+
+        if (extPrice) {
+          extEl.innerHTML = `
+            <table style="width:100%;font-size:12px;border-collapse:collapse;">
+              <tr>
+                <td style="color:var(--text-secondary);padding:3px 0;">${extType}</td>
+                <td style="text-align:right;padding:3px 0;">${fmt2(extPrice, base)}</td>
+              </tr>
+              <tr>
+                <td style="color:var(--text-secondary);padding:3px 0;font-size:11px;">Regular close</td>
+                <td style="text-align:right;padding:3px 0;font-size:11px;">$${(regClose||prevClose||0).toFixed(2)}</td>
+              </tr>
+            </table>`;
+        } else {
+          extEl.innerHTML = '<span style="color:var(--text-secondary);font-size:12px;">N/A — market in regular session</span>';
+        }
+      } catch (e) {
+        const extEl2 = document.getElementById('drill-extended');
+        if (extEl2) extEl2.textContent = 'N/A';
+      }
+    }
+
+    async function fetchDrillDownAnalyst(ticker) {
+      const el = document.getElementById('drill-analyst');
+      if (!el || !CONFIG.finnhubKey) return;
+      el.innerHTML = '<span style="color:var(--text-secondary)">Loading analyst data…</span>';
+      try {
+        const recRes = await fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${CONFIG.finnhubKey}`);
+        const recs = await recRes.json();
+        if (!Array.isArray(recs) || recs.length === 0) { el.textContent = 'No analyst data available.'; return; }
+
+        const latest = recs[0];
+        const total  = (latest.buy||0) + (latest.hold||0) + (latest.sell||0) + (latest.strongBuy||0) + (latest.strongSell||0);
+        const bullish = (latest.buy||0) + (latest.strongBuy||0);
+        const bearish = (latest.sell||0) + (latest.strongSell||0);
+        const bullPct = total ? Math.round((bullish / total) * 100) : 0;
+        const bearPct = total ? Math.round((bearish / total) * 100) : 0;
+        const holdPct = total ? Math.round(((latest.hold||0) / total) * 100) : 0;
+
+        const consensus = bullPct >= 60 ? 'Strong Buy' : bullPct >= 45 ? 'Buy' : bearPct >= 45 ? 'Sell' : 'Hold';
+        const consensusColor = bullPct >= 45 ? 'var(--positive)' : bearPct >= 45 ? 'var(--negative)' : 'var(--warning)';
+
+        el.innerHTML = `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;">
+            <div style="font-size:20px;font-weight:800;color:${consensusColor};">${consensus}</div>
+            <div style="font-size:12px;color:var(--text-secondary);">Based on ${total} analyst${total!==1?'s':''} · ${latest.period}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;text-align:center;">
+            <div style="background:rgba(74,222,128,0.1);border-radius:6px;padding:8px;">
+              <div style="font-size:16px;font-weight:700;color:var(--positive);">${bullish}</div>
+              <div style="font-size:11px;color:var(--text-secondary);">Buy/Strong<br>${bullPct}%</div>
+            </div>
+            <div style="background:rgba(251,191,36,0.1);border-radius:6px;padding:8px;">
+              <div style="font-size:16px;font-weight:700;color:var(--warning);">${latest.hold||0}</div>
+              <div style="font-size:11px;color:var(--text-secondary);">Hold<br>${holdPct}%</div>
+            </div>
+            <div style="background:rgba(248,113,113,0.1);border-radius:6px;padding:8px;">
+              <div style="font-size:16px;font-weight:700;color:var(--negative);">${bearish}</div>
+              <div style="font-size:11px;color:var(--text-secondary);">Sell/Strong<br>${bearPct}%</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;padding-top:8px;border-top:1px solid var(--border-card);">
+            Analyst price target:
+          </div>
+          <div id="drill-analyst-target" style="font-size:11px;color:var(--text-secondary);margin-top:4px;">
+            Add FMP API key in Settings to see price targets (free)
+          </div>`;
+      // Fetch FMP price target separately so it doesn't block the consensus display
+      if (CONFIG.fmpKey) fetchFmpTarget(ticker, document.getElementById('drill-analyst-target'));
+      } catch (e) {
+        el.innerHTML = `<span style="color:var(--negative)">Could not load: ${e.message}</span>`;
+        console.error('drill analyst:', e);
+      }
+    }
+
+    async function fetchFmpTarget(ticker, targetEl) {
+      if (!targetEl) return;
+      try {
+        const res  = await fetch(`https://financialmodelingprep.com/api/v3/price-target-consensus/${ticker}?apikey=${CONFIG.fmpKey}`);
+        const data = await res.json();
+        if (!Array.isArray(data) || !data[0]) { targetEl.textContent = 'No price target data'; return; }
+        const pt      = data[0];
+        const holding = portfolioState.holdings.find(h => h.ticker === ticker);
+        const upside  = (holding?.currentPrice && pt.targetConsensus)
+          ? ((pt.targetConsensus / holding.currentPrice) - 1) * 100 : null;
+        const uColor  = upside != null ? (upside >= 0 ? 'var(--positive)' : 'var(--negative)') : '';
+        targetEl.innerHTML = `
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px;">
+            <tr><td style="color:var(--text-secondary);padding:3px 0;">Target (mean)</td>
+                <td style="text-align:right;font-weight:600;">
+                  ${pt.targetConsensus ? '$'+pt.targetConsensus.toFixed(2) : '—'}
+                  ${upside != null ? `<span style="color:${uColor}"> (${upside>=0?'+':''}${upside.toFixed(1)}%)</span>` : ''}
+                </td></tr>
+            <tr><td style="color:var(--text-secondary);padding:3px 0;">Range</td>
+                <td style="text-align:right;font-weight:600;">${pt.targetLow?'$'+pt.targetLow.toFixed(2):'—'} – ${pt.targetHigh?'$'+pt.targetHigh.toFixed(2):'—'}</td></tr>
+          </table>`;
+      } catch (e) { targetEl.textContent = 'Could not load price targets'; }
+    }
+
+    async function fetchDrillDownNews(ticker) {
+      const el = document.getElementById('drill-news');
+      if (!el) return;
+      if (!CONFIG.finnhubKey) { el.textContent = 'Add Finnhub API key in Settings to see news.'; return; }
+      el.textContent = 'Loading…';
+      try {
+        const toDate = new Date().toISOString().split('T')[0];
+        const fromDate = new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0];
+        const res = await fetch(`https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${fromDate}&to=${toDate}&token=${CONFIG.finnhubKey}`);
+        const articles = await res.json();
+        if (!articles || articles.length === 0) { el.textContent = 'No recent news found.'; return; }
+        el.innerHTML = articles.slice(0, 5).map(a => {
+          const dt = a.datetime ? new Date(a.datetime * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          return `<div style="padding: 8px 0; border-bottom: 1px solid var(--border-card);">
+            <div><a href="${a.url}" target="_blank" style="color:var(--accent-blue);font-size:13px;font-weight:600;">${a.headline}</a></div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${a.source} · ${dt}</div>
+          </div>`;
+        }).join('');
+      } catch (_) { el.textContent = 'Failed to load news.'; }
+    }
+
+    // ==================== UTILITIES ====================
+    function deleteHolding(ticker) {
+      if (confirm(`Delete ${ticker} from your portfolio?`)) {
+        portfolioState.holdings = portfolioState.holdings.filter(h => h.ticker !== ticker);
+        renderHoldingsTable();
+        renderKPIs();
+      }
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-refresh-prices').addEventListener('click', fetchPrices);
+    }
+
+  </script>
+</body>
+</html>
