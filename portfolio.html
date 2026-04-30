@@ -1104,6 +1104,13 @@
   </div>
 
   <script>
+    window.onerror = function(msg, src, line) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:12px;font-size:13px;z-index:99999;font-family:monospace;white-space:pre-wrap;';
+      d.textContent = 'JS ERROR line ' + line + ': ' + msg;
+      document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function(){document.body.appendChild(d);});
+    };
+
     // ==================== CONFIG ====================
     const CONFIG = {
       finnhubKey: localStorage.getItem('finnhub_key') || 'd7msd89r01qngrvp921gd7msd89r01qngrvp9220',
